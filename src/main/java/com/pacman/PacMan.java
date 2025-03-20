@@ -30,6 +30,9 @@ public class PacMan extends Pane {
     private int lives = 3;
     private boolean gameOver = false;
 
+    // Direzione memorizzata
+    private KeyCode storedDirection = null;
+
     private String[] tileMap = {
         "XXXXXXXXXXXXXXXXXXX",
         "X        X        X",
@@ -54,29 +57,30 @@ public class PacMan extends Pane {
         "XXXXXXXXXXXXXXXXXXX"
 };
 
-    public PacMan() {
-        Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT);
-        gc = canvas.getGraphicsContext2D();
-        getChildren().add(canvas);
+public PacMan() {
+    Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT);
+    gc = canvas.getGraphicsContext2D();
+    getChildren().add(canvas);
 
-        loadImages();
-        loadMap();
+    loadImages();
+    loadMap();
 
-        setFocusTraversable(true);
-        setOnMouseClicked(e -> requestFocus());
-        setOnKeyPressed(e -> handleKeyPress(e.getCode()));
+    setFocusTraversable(true);
+    setOnMouseClicked(e -> requestFocus());
+    setOnKeyPressed(e -> handleKeyPress(e.getCode()));
 
-        gameLoop = new AnimationTimer() {
-            @Override
-            public void handle(long now) {
-                if (!gameOver) {
-                    move();
-                    draw();
-                }
+    gameLoop = new AnimationTimer() {
+        @Override
+        public void handle(long now) {
+            if (!gameOver) {
+                checkStoredDirection();
+                move();
+                draw();
             }
-        };
-        gameLoop.start();
-    }
+        }
+    };
+    gameLoop.start();
+}
 
     private void loadImages() {
         wallImage = new Image(getClass().getResource("/wall.png").toExternalForm());
@@ -112,42 +116,67 @@ public class PacMan extends Pane {
         }
     }
 
+    private void checkStoredDirection() {
+        if (storedDirection != null) {
+            if (canMove(storedDirection)) {
+                handleKeyPress(storedDirection);
+                storedDirection = null; // Reset della direzione memorizzata dopo il movimento
+            }
+        }
+    }
+
     private void move() {
         pacman.x += pacman.velocityX;
         pacman.y += pacman.velocityY;
-        
-        walls.forEach(wall -> {
+    
+        // Controlla collisione con i muri
+        for (Block wall : walls) {
             if (collision(pacman, wall)) {
+                // Se c'è una collisione, annulla il movimento
                 pacman.x -= pacman.velocityX;
                 pacman.y -= pacman.velocityY;
+                return;
             }
-        });
+        }
     
         // Controlla se Pac-Man ha mangiato un pallino
         foods.removeIf(food -> {
             if (collision(pacman, food)) {
                 score += 10; // Incrementa il punteggio
-                return true; // Rimuove il pallino
+                return true; // Rimuove il pallino dalla mappa
             }
             return false;
         });
     
-        for (Block ghost : ghosts) {
-            int dx = (random.nextBoolean() ? 4 : -4);
-            int dy = (random.nextBoolean() ? 4 : -4);
-            ghost.x += dx;
-            ghost.y += dy;
-            walls.forEach(wall -> {
-                if (collision(ghost, wall)) {
-                    ghost.x -= dx;
-                    ghost.y -= dy;
-                }
-            });
+        // Se una direzione memorizzata è disponibile e ora libera, applicala
+        if (storedDirection != null && canMove(storedDirection)) {
+            applyDirection(storedDirection);
+            storedDirection = null; // Reset della direzione memorizzata
         }
     }
+    
 
     private boolean collision(Block a, Block b) {
         return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+    }
+
+    private boolean canMove(KeyCode key) {
+        int newX = pacman.x;
+        int newY = pacman.y;
+
+        switch (key) {
+            case UP -> newY -= 4;
+            case DOWN -> newY += 4;
+            case LEFT -> newX -= 4;
+            case RIGHT -> newX += 4;
+        }
+
+        for (Block wall : walls) {
+            if (collision(new Block(null, newX, newY, TILE_SIZE, TILE_SIZE), wall)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void draw() {
@@ -169,6 +198,17 @@ public class PacMan extends Pane {
     }
 
     private void handleKeyPress(KeyCode key) {
+        // Se il movimento è possibile, aggiorna subito la direzione
+        if (canMove(key)) {
+            applyDirection(key);
+            storedDirection = null; // Reset della direzione memorizzata
+        } else {
+            // Memorizza il comando se non è possibile muoversi ora
+            storedDirection = key;
+        }
+    }
+
+    private void applyDirection(KeyCode key) {
         switch (key) {
             case UP -> pacman.updateDirection('U', pacmanUpImage);
             case DOWN -> pacman.updateDirection('D', pacmanDownImage);
