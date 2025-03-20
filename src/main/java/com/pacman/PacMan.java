@@ -137,15 +137,14 @@ public PacMan() {
     
         // Controlla se Pac-Man attraversa il tunnel laterale
         if (pacman.x < -TILE_SIZE) {
-            pacman.x = BOARD_WIDTH; // Esce a sinistra e riappare a destra
+            pacman.x = BOARD_WIDTH;
         } else if (pacman.x > BOARD_WIDTH) {
-            pacman.x = -TILE_SIZE; // Esce a destra e riappare a sinistra
+            pacman.x = -TILE_SIZE;
         }
     
         // Controlla collisione con i muri
         for (Block wall : walls) {
             if (collision(pacman, wall)) {
-                // Se c'è una collisione, annulla il movimento
                 pacman.x -= pacman.velocityX;
                 pacman.y -= pacman.velocityY;
                 return;
@@ -155,20 +154,51 @@ public PacMan() {
         // Controlla se Pac-Man ha mangiato un pallino
         foods.removeIf(food -> {
             if (collision(pacman, food)) {
-                score += 10; // Incrementa il punteggio
-                return true; // Rimuove il pallino dalla mappa
+                score += 10;
+                return true;
             }
             return false;
         });
     
+        // Controlla collisione con i fantasmi
+        for (Block ghost : ghosts) {
+            if (collision(pacman, ghost)) {
+                loseLife();
+                return;
+            }
+        }
+    
         // Se una direzione memorizzata è disponibile e ora libera, applicala
         if (storedDirection != null && canMove(storedDirection)) {
             applyDirection(storedDirection);
-            storedDirection = null; // Reset della direzione memorizzata
+            storedDirection = null;
         }
     }
     
-    
+    private void loseLife() {
+        lives--; // Decrementa il numero di vite
+        if (lives <= 0) {
+            gameOver = true;
+            gameLoop.stop();
+        } else {
+            resetPacmanPosition();
+        }
+    }
+
+    private void resetPacmanPosition() {
+        // Trova la posizione iniziale di Pac-Man nella mappa
+        for (int r = 0; r < ROW_COUNT; r++) {
+            for (int c = 0; c < COLUMN_COUNT; c++) {
+                if (tileMap[r].charAt(c) == 'P') {
+                    pacman.x = c * TILE_SIZE;
+                    pacman.y = r * TILE_SIZE;
+                    pacman.velocityX = 0;
+                    pacman.velocityY = 0;
+                    return;
+                }
+            }
+        }
+    }
 
     private boolean collision(Block a, Block b) {
         return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
@@ -213,15 +243,40 @@ public PacMan() {
     private void draw() {
         gc.setFill(Color.BLACK);
         gc.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
-        walls.forEach(wall -> { if (wall.image != null) gc.drawImage(wall.image, wall.x, wall.y, TILE_SIZE, TILE_SIZE); });
+        
+        // Disegna i muri
+        walls.forEach(wall -> {
+            if (wall.image != null) gc.drawImage(wall.image, wall.x, wall.y, TILE_SIZE, TILE_SIZE);
+        });
+        
+        // Disegna i pallini
         gc.setFill(Color.WHITE);
         foods.forEach(food -> gc.fillRect(food.x, food.y, food.width, food.height));
+        
+        // Disegna Pac-Man
         gc.drawImage(pacman.image, pacman.x, pacman.y, TILE_SIZE, TILE_SIZE);
+        
+        // Disegna i fantasmi
         ghosts.forEach(ghost -> gc.drawImage(ghost.image, ghost.x, ghost.y, TILE_SIZE, TILE_SIZE));
+        
+        // Disegna le vite rimanenti con l'immagine di Pac-Man
+        for (int i = 0; i < lives; i++) {
+            gc.drawImage(pacmanRightImage, TILE_SIZE * (i + 1), TILE_SIZE / 2.0, TILE_SIZE / 1.5, TILE_SIZE / 1.5);
+        }
+        
+        // Disegna il punteggio e il livello
         gc.setFill(Color.WHITE);
         gc.setFont(new Font("Arial", 18));
-        gc.fillText("Lives: " + lives + " Score: " + score + " Level: " + level, TILE_SIZE / 2.0, TILE_SIZE / 2.0);
+        gc.fillText("Score: " + score + " Level: " + level, TILE_SIZE * 5, TILE_SIZE / 2.0);
+        
+        // Disegna "GAME OVER" se il gioco è finito
+        if (gameOver) {
+            gc.setFill(Color.ORANGE);
+            gc.setFont(new Font("Arial", 50));
+            gc.fillText("GAME OVER", BOARD_WIDTH / 4.0, BOARD_HEIGHT / 2.0);
+        }
     }
+    
 
     private void handleKeyPress(KeyCode key) {
         // Se il movimento è possibile, aggiorna subito la direzione
