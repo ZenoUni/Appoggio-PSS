@@ -34,7 +34,29 @@ public class PacMan extends Pane {
     private int level = 1;
     private boolean flashing = false;
 
-    private KeyCode storedDirection = null;;
+    private KeyCode storedDirection = null;
+
+    private Image powerFoodImage, scaredGhostImage;
+    private HashSet<Block> powerFoods;
+    private boolean ghostsAreScared = false;
+
+    private Image getGhostImage(Block ghost) {
+        if (ghosts.contains(ghost)) {
+            int index = 0;
+            for (Block g : ghosts) {
+                if (g == ghost) break;
+                index++;
+            }
+    
+            return switch (index % 4) {
+                case 0 -> blueGhostImage;
+                case 1 -> orangeGhostImage;
+                case 2 -> pinkGhostImage;
+                default -> redGhostImage;
+            };
+        }
+        return null;
+    }
 
     private String[] tileMap = {
         "XXXXXXXXXXXXXXXXXXX",
@@ -61,6 +83,7 @@ public class PacMan extends Pane {
 };
 
 public PacMan() {
+
     Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT);
     gc = canvas.getGraphicsContext2D();
     getChildren().add(canvas);
@@ -88,39 +111,49 @@ public PacMan() {
     gameLoop.start();
 }
 
-    private void loadImages() {
-        wallImage = new Image(getClass().getResource("/wall.png").toExternalForm());
-        blueGhostImage = new Image(getClass().getResource("/blueGhost.png").toExternalForm());
-        orangeGhostImage = new Image(getClass().getResource("/orangeGhost.png").toExternalForm());
-        pinkGhostImage = new Image(getClass().getResource("/pinkGhost.png").toExternalForm());
-        redGhostImage = new Image(getClass().getResource("/redGhost.png").toExternalForm());
-        pacmanUpImage = new Image(getClass().getResource("/pacmanUp.png").toExternalForm());
-        pacmanDownImage = new Image(getClass().getResource("/pacmanDown.png").toExternalForm());
-        pacmanLeftImage = new Image(getClass().getResource("/pacmanLeft.png").toExternalForm());
-        pacmanRightImage = new Image(getClass().getResource("/pacmanRight.png").toExternalForm());
-    }
+private void loadImages() {
+    wallImage = new Image(getClass().getResource("/wall.png").toExternalForm());
+    blueGhostImage = new Image(getClass().getResource("/blueGhost.png").toExternalForm());
+    orangeGhostImage = new Image(getClass().getResource("/orangeGhost.png").toExternalForm());
+    pinkGhostImage = new Image(getClass().getResource("/pinkGhost.png").toExternalForm());
+    redGhostImage = new Image(getClass().getResource("/redGhost.png").toExternalForm());
+    pacmanUpImage = new Image(getClass().getResource("/pacmanUp.png").toExternalForm());
+    pacmanDownImage = new Image(getClass().getResource("/pacmanDown.png").toExternalForm());
+    pacmanLeftImage = new Image(getClass().getResource("/pacmanLeft.png").toExternalForm());
+    pacmanRightImage = new Image(getClass().getResource("/pacmanRight.png").toExternalForm());
+    powerFoodImage = new Image(getClass().getResource("/powerFood.png").toExternalForm());
+    scaredGhostImage = new Image(getClass().getResource("/scaredGhost.png").toExternalForm());
+}
 
-    private void loadMap() {
-        walls = new HashSet<>();
-        foods = new HashSet<>();
-        ghosts = new HashSet<>();
+private void loadMap() {
+    walls = new HashSet<>();
+    foods = new HashSet<>();
+    ghosts = new HashSet<>();
+    powerFoods = new HashSet<>();
 
-        for (int r = 0; r < ROW_COUNT; r++) {
-            for (int c = 0; c < COLUMN_COUNT; c++) {
-                int x = c * TILE_SIZE;
-                int y = r * TILE_SIZE;
-                char tile = tileMap[r].charAt(c);
+    for (int r = 0; r < ROW_COUNT; r++) {
+        for (int c = 0; c < COLUMN_COUNT; c++) {
+            int x = c * TILE_SIZE;
+            int y = r * TILE_SIZE;
+            char tile = tileMap[r].charAt(c);
 
-                if (tile == 'X') walls.add(new Block(wallImage, x, y));
-                else if (tile == 'b') ghosts.add(new Block(blueGhostImage, x, y));
-                else if (tile == 'o') ghosts.add(new Block(orangeGhostImage, x, y));
-                else if (tile == 'p') ghosts.add(new Block(pinkGhostImage, x, y));
-                else if (tile == 'r') ghosts.add(new Block(redGhostImage, x, y));
-                else if (tile == 'P') pacman = new Block(pacmanRightImage, x, y);
-                else if (tile == ' ') foods.add(new Block(null, x + TILE_SIZE / 2 - 2, y + TILE_SIZE / 2 - 2, 4, 4));
-            }
+            if (tile == 'X') walls.add(new Block(wallImage, x, y));
+            else if (tile == 'b') ghosts.add(new Block(blueGhostImage, x, y));
+            else if (tile == 'o') ghosts.add(new Block(orangeGhostImage, x, y));
+            else if (tile == 'p') ghosts.add(new Block(pinkGhostImage, x, y));
+            else if (tile == 'r') ghosts.add(new Block(redGhostImage, x, y));
+            else if (tile == 'P') pacman = new Block(pacmanRightImage, x, y);
+            else if (tile == ' ') foods.add(new Block(null, x + TILE_SIZE / 2 - 2, y + TILE_SIZE / 2 - 2, 4, 4));
         }
     }
+
+    // Posiziona i powerFood nei quattro angoli
+    powerFoods.add(new Block(powerFoodImage, TILE_SIZE, TILE_SIZE));
+    powerFoods.add(new Block(powerFoodImage, BOARD_WIDTH - TILE_SIZE * 2, TILE_SIZE));
+    powerFoods.add(new Block(powerFoodImage, TILE_SIZE, BOARD_HEIGHT - TILE_SIZE * 2));
+    powerFoods.add(new Block(powerFoodImage, BOARD_WIDTH - TILE_SIZE * 2, BOARD_HEIGHT - TILE_SIZE * 2));
+}
+
 
     private void checkStoredDirection() {
         if (storedDirection != null) {
@@ -136,11 +169,8 @@ public PacMan() {
         pacman.y += pacman.velocityY;
     
         // Controlla se Pac-Man attraversa il tunnel laterale
-        if (pacman.x < -TILE_SIZE) {
-            pacman.x = BOARD_WIDTH;
-        } else if (pacman.x > BOARD_WIDTH) {
-            pacman.x = -TILE_SIZE;
-        }
+        if (pacman.x < -TILE_SIZE) pacman.x = BOARD_WIDTH;
+        else if (pacman.x > BOARD_WIDTH) pacman.x = -TILE_SIZE;
     
         // Controlla collisione con i muri
         for (Block wall : walls) {
@@ -150,6 +180,15 @@ public PacMan() {
                 return;
             }
         }
+    
+        // Controlla se Pac-Man ha mangiato un powerFood
+        powerFoods.removeIf(powerFood -> {
+            if (collision(pacman, powerFood)) {
+                activateScaredMode();
+                return true;
+            }
+            return false;
+        });
     
         // Controlla se Pac-Man ha mangiato un pallino
         foods.removeIf(food -> {
@@ -163,15 +202,51 @@ public PacMan() {
         // Controlla collisione con i fantasmi
         for (Block ghost : ghosts) {
             if (collision(pacman, ghost)) {
-                loseLife();
-                return;
+                if (ghostsAreScared) {
+                    score += 200;
+                    resetGhost(ghost);
+                } else {
+                    loseLife();
+                    return;
+                }
             }
         }
+    }
+
+    private void activateScaredMode() {
+        ghostsAreScared = true;
+        for (Block ghost : ghosts) {
+            ghost.image = scaredGhostImage;
+        }
+        
+        PauseTransition pause = new PauseTransition(Duration.seconds(4));
+        pause.setOnFinished(e -> deactivateScaredMode());
+        pause.play();
+    }
     
-        // Se una direzione memorizzata è disponibile e ora libera, applicala
-        if (storedDirection != null && canMove(storedDirection)) {
-            applyDirection(storedDirection);
-            storedDirection = null;
+    private void deactivateScaredMode() {
+        ghostsAreScared = false;
+        resetGhostImages();
+    }
+    
+    private void resetGhost(Block ghost) {
+        PauseTransition pause = new PauseTransition(Duration.seconds(2));
+        pause.setOnFinished(e -> {
+            ghost.image = getGhostImage(ghost);
+        });
+        pause.play();
+    }
+    
+    private void resetGhostImages() {
+        int i = 0;
+        for (Block ghost : ghosts) {
+            ghost.image = switch (i % 4) {
+                case 0 -> blueGhostImage;
+                case 1 -> orangeGhostImage;
+                case 2 -> pinkGhostImage;
+                default -> redGhostImage;
+            };
+            i++;
         }
     }
     
@@ -275,7 +350,9 @@ public PacMan() {
             gc.setFont(new Font("Arial", 50));
             gc.fillText("GAME OVER", BOARD_WIDTH / 4.0, BOARD_HEIGHT / 2.0);
         }
+        powerFoods.forEach(powerFood -> gc.drawImage(powerFood.image, powerFood.x, powerFood.y, TILE_SIZE, TILE_SIZE));
     }
+    
     
 
     private void handleKeyPress(KeyCode key) {
