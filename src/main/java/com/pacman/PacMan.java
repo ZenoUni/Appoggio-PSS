@@ -264,17 +264,33 @@ public class PacMan extends Pane {
     }
     
     private void resetGhost(Block ghost) {
-        ghosts.remove(ghost);
-        
+        ghosts.remove(ghost); // Rimuove il fantasma momentaneamente
+    
+        // Torna immediatamente alla sua immagine normale
+        ghost.image = getOriginalGhostImage(ghost);
+    
         PauseTransition pause = new PauseTransition(Duration.seconds(1));
         pause.setOnFinished(e -> {
-            ghost.x = COLUMN_COUNT / 2 * TILE_SIZE;
+            ghost.x = COLUMN_COUNT / 2 * TILE_SIZE;  // Posizione iniziale nella gabbia
             ghost.y = (ROW_COUNT / 2 - 2) * TILE_SIZE;
-            ghost.image = getGhostImage(ghost); // Ritorna alla sua immagine originale
-            ghosts.add(ghost);
+            ghosts.add(ghost); // Reinserisce il fantasma nel gioco
         });
         pause.play();
     }
+    
+    private Image getOriginalGhostImage(Block ghost) {
+        int index = 0;
+        for (Block g : ghosts) {
+            if (g == ghost) break;
+            index++;
+        }
+        return switch (index % 4) {
+            case 0 -> blueGhostImage;
+            case 1 -> orangeGhostImage;
+            case 2 -> pinkGhostImage;
+            default -> redGhostImage;
+        };
+    }    
     
     private void resetGhostImages() {
         int i = 0;
@@ -340,6 +356,12 @@ public class PacMan extends Pane {
         });
         pause.play();
         pause.setOnFinished(e -> {
+            // Risolvi il problema della modalità "spaventata"
+            if (scaredTimer != null) {
+                scaredTimer.stop(); // Ferma il timer della modalità spaventata
+            }
+            deactivateScaredMode(); // Resetta i fantasmi alla loro forma normale
+    
             walls.forEach(w -> w.image = wallImage);
             draw();
             level++;
