@@ -10,7 +10,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
-
 import java.util.HashSet;
 import java.util.Random;
 
@@ -24,39 +23,25 @@ public class PacMan extends Pane {
     private Image wallImage, pacmanUpImage, pacmanDownImage, pacmanLeftImage, pacmanRightImage;
     private Image blueGhostImage, orangeGhostImage, pinkGhostImage, redGhostImage;
     private HashSet<Block> walls, foods, ghosts;
+
     private Block pacman;
     private GraphicsContext gc;
     private AnimationTimer gameLoop;
     private Random random = new Random();
+
     private int score = 0;
     private int lives = 3;
-    private boolean gameOver = false;
     private int level = 1;
+
     private boolean flashing = false;
-
     private KeyCode storedDirection = null;
+    private boolean gameOver = false;
 
-    private Image powerFoodImage, scaredGhostImage;
     private HashSet<Block> powerFoods;
+    private Image powerFoodImage, scaredGhostImage;
     private boolean ghostsAreScared = false;
-
-    private Image getGhostImage(Block ghost) {
-        if (ghosts.contains(ghost)) {
-            int index = 0;
-            for (Block g : ghosts) {
-                if (g == ghost) break;
-                index++;
-            }
-    
-            return switch (index % 4) {
-                case 0 -> blueGhostImage;
-                case 1 -> orangeGhostImage;
-                case 2 -> pinkGhostImage;
-                default -> redGhostImage;
-            };
-        }
-        return null;
-    }
+    private Block ghostPortal;
+    private PauseTransition scaredTimer;
 
     private String[] tileMap = {
         "XXXXXXXXXXXXXXXXXXX",
@@ -66,9 +51,9 @@ public class PacMan extends Pane {
         "X XX X XXXXX X XX X",
         "X    X       X    X",
         "XXXX XXXX XXXX XXXX",
-        "OOOX X       X XOOO",
-        "XXXX X XXrXX X XXXX",
-        "O       bpo       O",
+        "OOOX X   r   X XOOO",
+        "XXXX X XX-XX X XXXX",
+        "O      XbpoX      O",
         "XXXX X XXXXX X XXXX",
         "OOOX X       X XOOO",
         "XXXX X XXXXX X XXXX",
@@ -80,80 +65,149 @@ public class PacMan extends Pane {
         "X XXXXXX X XXXXXX X",
         "X                 X",
         "XXXXXXXXXXXXXXXXXXX"
-};
+    };
 
-public PacMan() {
+    private void loadMap() {
+        walls = new HashSet<>();
+        foods = new HashSet<>();
+        ghosts = new HashSet<>();
+        powerFoods = new HashSet<>();
+        
+        Block redGhost = null;
+        
+        for (int r = 0; r < ROW_COUNT; r++) {
+            for (int c = 0; c < COLUMN_COUNT; c++) {
+                int x = c * TILE_SIZE;
+                int y = r * TILE_SIZE;
+                char tile = tileMap[r].charAt(c);
+                
+                if (tile == 'X') walls.add(new Block(wallImage, x, y));
+                else if (tile == 'b') ghosts.add(new Block(blueGhostImage, x, y));
+                else if (tile == 'o') ghosts.add(new Block(orangeGhostImage, x, y));
+                else if (tile == 'p') ghosts.add(new Block(pinkGhostImage, x, y));
+                else if (tile == 'r') redGhost = new Block(redGhostImage, x, y);
+                else if (tile == 'P') pacman = new Block(pacmanRightImage, x, y);
+                else if (tile == ' ') foods.add(new Block(null, x + TILE_SIZE / 2 - 2, y + TILE_SIZE / 2 - 2, 4, 4));
+                else if (tile == '-') ghostPortal = new Block(null, x, y, TILE_SIZE, 4); 
+            }
+        }
+        if (redGhost != null) ghosts.add(redGhost);
+        powerFoods.add(new Block(powerFoodImage, TILE_SIZE, TILE_SIZE));
+        powerFoods.add(new Block(powerFoodImage, BOARD_WIDTH - TILE_SIZE * 2, TILE_SIZE));
+        powerFoods.add(new Block(powerFoodImage, TILE_SIZE, BOARD_HEIGHT - TILE_SIZE * 2));
+        powerFoods.add(new Block(powerFoodImage, BOARD_WIDTH - TILE_SIZE * 2, BOARD_HEIGHT - TILE_SIZE * 2));
+    }
 
-    Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT);
-    gc = canvas.getGraphicsContext2D();
-    getChildren().add(canvas);
+    private void loadImages() {
+        wallImage = new Image(getClass().getResource("/wall.png").toExternalForm());
+        blueGhostImage = new Image(getClass().getResource("/blueGhost.png").toExternalForm());
+        orangeGhostImage = new Image(getClass().getResource("/orangeGhost.png").toExternalForm());
+        pinkGhostImage = new Image(getClass().getResource("/pinkGhost.png").toExternalForm());
+        redGhostImage = new Image(getClass().getResource("/redGhost.png").toExternalForm());
+        pacmanUpImage = new Image(getClass().getResource("/pacmanUp.png").toExternalForm());
+        pacmanDownImage = new Image(getClass().getResource("/pacmanDown.png").toExternalForm());
+        pacmanLeftImage = new Image(getClass().getResource("/pacmanLeft.png").toExternalForm());
+        pacmanRightImage = new Image(getClass().getResource("/pacmanRight.png").toExternalForm());
+        powerFoodImage = new Image(getClass().getResource("/powerFood.png").toExternalForm());
+        scaredGhostImage = new Image(getClass().getResource("/scaredGhost.png").toExternalForm());
+    }
 
-    loadImages();
-    loadMap();
+    public PacMan() {
+        Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT);
+        gc = canvas.getGraphicsContext2D();
+        getChildren().add(canvas);
 
-    setFocusTraversable(true);
-    setOnMouseClicked(e -> requestFocus());
-    setOnKeyPressed(e -> handleKeyPress(e.getCode()));
+        loadImages();
+        loadMap();
 
-    gameLoop = new AnimationTimer() {
-        @Override
-        public void handle(long now) {
-            if (!gameOver && !flashing) {
-                checkStoredDirection();
-                move();
-                draw();
-                if (foods.isEmpty()) {
-                    nextLevel();
+        setFocusTraversable(true);
+        setOnMouseClicked(e -> requestFocus());
+        setOnKeyPressed(e -> handleKeyPress(e.getCode()));
+
+        gameLoop = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                if (!gameOver && !flashing) {
+                    checkStoredDirection();
+                    move();
+                    draw();
+                    if (foods.isEmpty()) {
+                        nextLevel();
+                    }
+                }
+            }
+        };
+        gameLoop.start();
+    }
+
+    private void move() {
+        pacman.x += pacman.velocityX;
+        pacman.y += pacman.velocityY;
+        if (pacman.x < -TILE_SIZE) pacman.x = BOARD_WIDTH;
+        else if (pacman.x > BOARD_WIDTH) pacman.x = -TILE_SIZE;
+        
+        for (Block wall : walls) {
+            if (collision(pacman, wall) || collision(pacman, ghostPortal)) {
+                pacman.x -= pacman.velocityX;
+                pacman.y -= pacman.velocityY;
+                return;
+            }
+        }
+    
+        powerFoods.removeIf(powerFood -> {
+            if (collision(pacman, powerFood)) {
+                activateScaredMode();
+                return true;
+            }
+            return false;
+        });
+    
+        foods.removeIf(food -> {
+            if (collision(pacman, food)) {
+                score += 10;
+                return true;
+            }
+            return false;
+        });
+    
+        HashSet<Block> eatenGhosts = new HashSet<>();
+        for (Block ghost : ghosts) {
+            if (collision(pacman, ghost)) {
+                if (ghostsAreScared) {
+                    score += 200; // Aggiunge solo 200 punti
+                    eatenGhosts.add(ghost); // Aggiunge alla lista dei fantasmi mangiati
+                } else {
+                    loseLife();
+                    return;
                 }
             }
         }
-    };
-    gameLoop.start();
-}
-
-private void loadImages() {
-    wallImage = new Image(getClass().getResource("/wall.png").toExternalForm());
-    blueGhostImage = new Image(getClass().getResource("/blueGhost.png").toExternalForm());
-    orangeGhostImage = new Image(getClass().getResource("/orangeGhost.png").toExternalForm());
-    pinkGhostImage = new Image(getClass().getResource("/pinkGhost.png").toExternalForm());
-    redGhostImage = new Image(getClass().getResource("/redGhost.png").toExternalForm());
-    pacmanUpImage = new Image(getClass().getResource("/pacmanUp.png").toExternalForm());
-    pacmanDownImage = new Image(getClass().getResource("/pacmanDown.png").toExternalForm());
-    pacmanLeftImage = new Image(getClass().getResource("/pacmanLeft.png").toExternalForm());
-    pacmanRightImage = new Image(getClass().getResource("/pacmanRight.png").toExternalForm());
-    powerFoodImage = new Image(getClass().getResource("/powerFood.png").toExternalForm());
-    scaredGhostImage = new Image(getClass().getResource("/scaredGhost.png").toExternalForm());
-}
-
-private void loadMap() {
-    walls = new HashSet<>();
-    foods = new HashSet<>();
-    ghosts = new HashSet<>();
-    powerFoods = new HashSet<>();
-
-    for (int r = 0; r < ROW_COUNT; r++) {
-        for (int c = 0; c < COLUMN_COUNT; c++) {
-            int x = c * TILE_SIZE;
-            int y = r * TILE_SIZE;
-            char tile = tileMap[r].charAt(c);
-
-            if (tile == 'X') walls.add(new Block(wallImage, x, y));
-            else if (tile == 'b') ghosts.add(new Block(blueGhostImage, x, y));
-            else if (tile == 'o') ghosts.add(new Block(orangeGhostImage, x, y));
-            else if (tile == 'p') ghosts.add(new Block(pinkGhostImage, x, y));
-            else if (tile == 'r') ghosts.add(new Block(redGhostImage, x, y));
-            else if (tile == 'P') pacman = new Block(pacmanRightImage, x, y);
-            else if (tile == ' ') foods.add(new Block(null, x + TILE_SIZE / 2 - 2, y + TILE_SIZE / 2 - 2, 4, 4));
+    
+        // Reset di ogni fantasma mangiato
+        for (Block ghost : eatenGhosts) {
+            resetGhost(ghost);
         }
     }
 
-    // Posiziona i powerFood nei quattro angoli
-    powerFoods.add(new Block(powerFoodImage, TILE_SIZE, TILE_SIZE));
-    powerFoods.add(new Block(powerFoodImage, BOARD_WIDTH - TILE_SIZE * 2, TILE_SIZE));
-    powerFoods.add(new Block(powerFoodImage, TILE_SIZE, BOARD_HEIGHT - TILE_SIZE * 2));
-    powerFoods.add(new Block(powerFoodImage, BOARD_WIDTH - TILE_SIZE * 2, BOARD_HEIGHT - TILE_SIZE * 2));
-}
+    private void handleKeyPress(KeyCode key) {
+        // Se il movimento è possibile, aggiorna subito la direzione
+        if (canMove(key)) {
+            applyDirection(key);
+            storedDirection = null; // Reset della direzione memorizzata
+        } else {
+            // Memorizza il comando se non è possibile muoversi ora
+            storedDirection = key;
+        }
+    }
 
+    private void applyDirection(KeyCode key) {
+        switch (key) {
+            case UP -> pacman.updateDirection('U', pacmanUpImage);
+            case DOWN -> pacman.updateDirection('D', pacmanDownImage);
+            case LEFT -> pacman.updateDirection('L', pacmanLeftImage);
+            case RIGHT -> pacman.updateDirection('R', pacmanRightImage);
+        }
+    }
 
     private void checkStoredDirection() {
         if (storedDirection != null) {
@@ -164,53 +218,28 @@ private void loadMap() {
         }
     }
 
-    private void move() {
-        pacman.x += pacman.velocityX;
-        pacman.y += pacman.velocityY;
-    
-        // Controlla se Pac-Man attraversa il tunnel laterale
-        if (pacman.x < -TILE_SIZE) pacman.x = BOARD_WIDTH;
-        else if (pacman.x > BOARD_WIDTH) pacman.x = -TILE_SIZE;
-    
-        // Controlla collisione con i muri
+    private boolean collision(Block a, Block b) {
+        return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+    }
+
+    private boolean canMove(KeyCode key) {
+        int newX = pacman.x;
+        int newY = pacman.y;
+        switch (key) {
+            case UP -> newY -= 4;
+            case DOWN -> newY += 4;
+            case LEFT -> newX -= 4;
+            case RIGHT -> newX += 4;
+        }
         for (Block wall : walls) {
-            if (collision(pacman, wall)) {
-                pacman.x -= pacman.velocityX;
-                pacman.y -= pacman.velocityY;
-                return;
+            if (collision(new Block(null, newX, newY, TILE_SIZE, TILE_SIZE), wall)) {
+                return false;
             }
         }
-    
-        // Controlla se Pac-Man ha mangiato un powerFood
-        powerFoods.removeIf(powerFood -> {
-            if (collision(pacman, powerFood)) {
-                activateScaredMode();
-                return true;
-            }
+        if (collision(new Block(null, newX, newY, TILE_SIZE, TILE_SIZE), ghostPortal)) {
             return false;
-        });
-    
-        // Controlla se Pac-Man ha mangiato un pallino
-        foods.removeIf(food -> {
-            if (collision(pacman, food)) {
-                score += 10;
-                return true;
-            }
-            return false;
-        });
-    
-        // Controlla collisione con i fantasmi
-        for (Block ghost : ghosts) {
-            if (collision(pacman, ghost)) {
-                if (ghostsAreScared) {
-                    score += 200;
-                    resetGhost(ghost);
-                } else {
-                    loseLife();
-                    return;
-                }
-            }
         }
+        return true;
     }
 
     private void activateScaredMode() {
@@ -219,10 +248,15 @@ private void loadMap() {
             ghost.image = scaredGhostImage;
         }
         
-        PauseTransition pause = new PauseTransition(Duration.seconds(4));
-        pause.setOnFinished(e -> deactivateScaredMode());
-        pause.play();
+        if (scaredTimer != null) {
+            scaredTimer.stop(); // Ferma il timer precedente se esiste
+        }
+        
+        scaredTimer = new PauseTransition(Duration.seconds(10));
+        scaredTimer.setOnFinished(e -> deactivateScaredMode());
+        scaredTimer.play();
     }
+    
     
     private void deactivateScaredMode() {
         ghostsAreScared = false;
@@ -230,9 +264,14 @@ private void loadMap() {
     }
     
     private void resetGhost(Block ghost) {
-        PauseTransition pause = new PauseTransition(Duration.seconds(2));
+        ghosts.remove(ghost);
+        
+        PauseTransition pause = new PauseTransition(Duration.seconds(1));
         pause.setOnFinished(e -> {
-            ghost.image = getGhostImage(ghost);
+            ghost.x = COLUMN_COUNT / 2 * TILE_SIZE;
+            ghost.y = (ROW_COUNT / 2 - 2) * TILE_SIZE;
+            ghost.image = getGhostImage(ghost); // Ritorna alla sua immagine originale
+            ghosts.add(ghost);
         });
         pause.play();
     }
@@ -249,15 +288,22 @@ private void loadMap() {
             i++;
         }
     }
-    
-    private void loseLife() {
-        lives--; // Decrementa il numero di vite
-        if (lives <= 0) {
-            gameOver = true;
-            gameLoop.stop();
-        } else {
-            resetPacmanPosition();
+
+    private Image getGhostImage(Block ghost) {
+        if (ghosts.contains(ghost)) {
+            int index = 0;
+            for (Block g : ghosts) {
+                if (g == ghost) break;
+                index++;
+            }
+            return switch (index % 4) {
+                case 0 -> blueGhostImage;
+                case 1 -> orangeGhostImage;
+                case 2 -> pinkGhostImage;
+                default -> redGhostImage;
+            };
         }
+        return null;
     }
 
     private void resetPacmanPosition() {
@@ -274,28 +320,15 @@ private void loadMap() {
             }
         }
     }
-
-    private boolean collision(Block a, Block b) {
-        return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
-    }
-
-    private boolean canMove(KeyCode key) {
-        int newX = pacman.x;
-        int newY = pacman.y;
-
-        switch (key) {
-            case UP -> newY -= 4;
-            case DOWN -> newY += 4;
-            case LEFT -> newX -= 4;
-            case RIGHT -> newX += 4;
+    
+    private void loseLife() {
+        lives--; // Decrementa il numero di vite
+        if (lives <= 0) {
+            gameOver = true;
+            gameLoop.stop();
+        } else {
+            resetPacmanPosition();
         }
-
-        for (Block wall : walls) {
-            if (collision(new Block(null, newX, newY, TILE_SIZE, TILE_SIZE), wall)) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private void nextLevel() {
@@ -343,6 +376,13 @@ private void loadMap() {
         gc.setFill(Color.WHITE);
         gc.setFont(new Font("Arial", 18));
         gc.fillText("Score: " + score + " Level: " + level, TILE_SIZE * 5, TILE_SIZE / 2.0);
+
+        // Disegna la linea del portale
+        if (ghostPortal != null) {
+            gc.setStroke(Color.WHITE);
+            gc.setLineWidth(4);
+            gc.strokeLine(ghostPortal.x, ghostPortal.y + 2, ghostPortal.x + TILE_SIZE, ghostPortal.y + 2);
+        }
         
         // Disegna "GAME OVER" se il gioco è finito
         if (gameOver) {
@@ -351,28 +391,6 @@ private void loadMap() {
             gc.fillText("GAME OVER", BOARD_WIDTH / 4.0, BOARD_HEIGHT / 2.0);
         }
         powerFoods.forEach(powerFood -> gc.drawImage(powerFood.image, powerFood.x, powerFood.y, TILE_SIZE, TILE_SIZE));
-    }
-    
-    
-
-    private void handleKeyPress(KeyCode key) {
-        // Se il movimento è possibile, aggiorna subito la direzione
-        if (canMove(key)) {
-            applyDirection(key);
-            storedDirection = null; // Reset della direzione memorizzata
-        } else {
-            // Memorizza il comando se non è possibile muoversi ora
-            storedDirection = key;
-        }
-    }
-
-    private void applyDirection(KeyCode key) {
-        switch (key) {
-            case UP -> pacman.updateDirection('U', pacmanUpImage);
-            case DOWN -> pacman.updateDirection('D', pacmanDownImage);
-            case LEFT -> pacman.updateDirection('L', pacmanLeftImage);
-            case RIGHT -> pacman.updateDirection('R', pacmanRightImage);
-        }
     }
 
     private static class Block {
