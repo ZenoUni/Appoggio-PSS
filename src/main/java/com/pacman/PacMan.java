@@ -24,6 +24,10 @@ public class PacMan extends Pane {
     private Image blueGhostImage, orangeGhostImage, pinkGhostImage, redGhostImage;
     private HashSet<Block> walls, foods, ghosts;
 
+    private AnimationTimer blinkTimer;
+    private boolean blinking = false;
+    private Image whiteGhostImage;
+
     private Block pacman;
     private GraphicsContext gc;
     private AnimationTimer gameLoop;
@@ -110,6 +114,7 @@ public class PacMan extends Pane {
         pacmanRightImage = new Image(getClass().getResource("/pacmanRight.png").toExternalForm());
         powerFoodImage = new Image(getClass().getResource("/powerFood.png").toExternalForm());
         scaredGhostImage = new Image(getClass().getResource("/scaredGhost.png").toExternalForm());
+        whiteGhostImage = new Image(getClass().getResource("/whiteGhost.png").toExternalForm());
     }
 
     public PacMan() {
@@ -244,36 +249,75 @@ public class PacMan extends Pane {
 
     private void activateScaredMode() {
         ghostsAreScared = true;
+        blinking = false;
+    
         for (Block ghost : ghosts) {
             ghost.image = scaredGhostImage;
         }
-        
+    
         if (scaredTimer != null) {
-            scaredTimer.stop(); // Ferma il timer precedente se esiste
+            scaredTimer.stop();
         }
-        
-        scaredTimer = new PauseTransition(Duration.seconds(10));
-        scaredTimer.setOnFinished(e -> deactivateScaredMode());
+        if (blinkTimer != null) {
+            blinkTimer.stop();
+        }
+    
+        scaredTimer = new PauseTransition(Duration.seconds(3));
+        scaredTimer.setOnFinished(e -> startBlinking());
         scaredTimer.play();
     }
     
+    private void startBlinking() {
+        blinking = true;
+        int blinkCount = 3;
+    
+        blinkTimer = new AnimationTimer() {
+            private long lastBlinkTime = 0;
+            private int blinkTimes = 0;
+    
+            @Override
+            public void handle(long now) {
+                if (blinkTimes < blinkCount * 2) {
+                    if (now - lastBlinkTime > 500_000_000) {
+                        toggleGhostsBlinking();
+                        lastBlinkTime = now;
+                        blinkTimes++;
+                    }
+                } else {
+                    blinkTimer.stop();
+                    deactivateScaredMode();
+                }
+            }
+        };
+        blinkTimer.start();
+    }
+    
+    private void toggleGhostsBlinking() {
+        for (Block ghost : ghosts) {
+            if (ghost.image == scaredGhostImage || ghost.image == whiteGhostImage) {
+                ghost.image = (ghost.image == scaredGhostImage) ? whiteGhostImage : scaredGhostImage;
+            }
+        }
+    }
     
     private void deactivateScaredMode() {
         ghostsAreScared = false;
+        blinking = false;
+        if (blinkTimer != null) {
+            blinkTimer.stop();
+        }
         resetGhostImages();
     }
     
     private void resetGhost(Block ghost) {
-        ghosts.remove(ghost); // Rimuove il fantasma momentaneamente
-    
-        // Torna immediatamente alla sua immagine normale
-        ghost.image = getOriginalGhostImage(ghost);
+        ghosts.remove(ghost); 
+        ghost.image = getOriginalGhostImage(ghost); 
     
         PauseTransition pause = new PauseTransition(Duration.seconds(1));
         pause.setOnFinished(e -> {
-            ghost.x = COLUMN_COUNT / 2 * TILE_SIZE;  // Posizione iniziale nella gabbia
+            ghost.x = COLUMN_COUNT / 2 * TILE_SIZE;
             ghost.y = (ROW_COUNT / 2 - 2) * TILE_SIZE;
-            ghosts.add(ghost); // Reinserisce il fantasma nel gioco
+            ghosts.add(ghost);
         });
         pause.play();
     }
