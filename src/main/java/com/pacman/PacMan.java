@@ -12,6 +12,7 @@ import javafx.scene.text.Font;
 import javafx.util.Duration;
 import java.util.HashSet;
 import java.util.Random;
+import java.util.ArrayList;
 
 public class PacMan extends Pane {
     private static final int TILE_SIZE = 32;
@@ -22,6 +23,9 @@ public class PacMan extends Pane {
 
     private Image wallImage, pacmanUpImage, pacmanDownImage, pacmanLeftImage, pacmanRightImage;
     private Image blueGhostImage, orangeGhostImage, pinkGhostImage, redGhostImage;
+    private Image cherryImage;
+
+    private ArrayList<Image> collectedFruits = new ArrayList<>();
     private HashSet<Block> walls, foods, ghosts;
 
     private AnimationTimer blinkTimer;
@@ -46,6 +50,15 @@ public class PacMan extends Pane {
     private boolean ghostsAreScared = false;
     private Block ghostPortal;
     private PauseTransition scaredTimer;
+
+    private Block cherry;
+    private PauseTransition cherryTimer;
+    private boolean waitingForRestart = false; //per bloccare gioco fino a nuovo input
+    private Font scoreFont;
+    
+    private void loadFont() {
+        scoreFont = Font.loadFont(getClass().getResource("/assets/fonts/PressStart2P.ttf").toExternalForm(), 12);
+        }
 
     private String[] tileMap = {
         "XXXXXXXXXXXXXXXXXXX",
@@ -76,15 +89,15 @@ public class PacMan extends Pane {
         foods = new HashSet<>();
         ghosts = new HashSet<>();
         powerFoods = new HashSet<>();
-        
+
         Block redGhost = null;
-        
+
         for (int r = 0; r < ROW_COUNT; r++) {
             for (int c = 0; c < COLUMN_COUNT; c++) {
                 int x = c * TILE_SIZE;
                 int y = r * TILE_SIZE;
                 char tile = tileMap[r].charAt(c);
-                
+
                 if (tile == 'X') walls.add(new Block(wallImage, x, y));
                 else if (tile == 'b') ghosts.add(new Block(blueGhostImage, x, y));
                 else if (tile == 'o') ghosts.add(new Block(orangeGhostImage, x, y));
@@ -92,7 +105,7 @@ public class PacMan extends Pane {
                 else if (tile == 'r') redGhost = new Block(redGhostImage, x, y);
                 else if (tile == 'P') pacman = new Block(pacmanRightImage, x, y);
                 else if (tile == ' ') foods.add(new Block(null, x + TILE_SIZE / 2 - 2, y + TILE_SIZE / 2 - 2, 4, 4));
-                else if (tile == '-') ghostPortal = new Block(null, x, y, TILE_SIZE, 4); 
+                else if (tile == '-') ghostPortal = new Block(null, x, y, TILE_SIZE, 4);
             }
         }
         if (redGhost != null) ghosts.add(redGhost);
@@ -103,22 +116,25 @@ public class PacMan extends Pane {
     }
 
     private void loadImages() {
-        wallImage = new Image(getClass().getResource("/wall.png").toExternalForm());
-        blueGhostImage = new Image(getClass().getResource("/blueGhost.png").toExternalForm());
-        orangeGhostImage = new Image(getClass().getResource("/orangeGhost.png").toExternalForm());
-        pinkGhostImage = new Image(getClass().getResource("/pinkGhost.png").toExternalForm());
-        redGhostImage = new Image(getClass().getResource("/redGhost.png").toExternalForm());
-        pacmanUpImage = new Image(getClass().getResource("/pacmanUp.png").toExternalForm());
-        pacmanDownImage = new Image(getClass().getResource("/pacmanDown.png").toExternalForm());
-        pacmanLeftImage = new Image(getClass().getResource("/pacmanLeft.png").toExternalForm());
-        pacmanRightImage = new Image(getClass().getResource("/pacmanRight.png").toExternalForm());
-        powerFoodImage = new Image(getClass().getResource("/powerFood.png").toExternalForm());
-        scaredGhostImage = new Image(getClass().getResource("/scaredGhost.png").toExternalForm());
-        whiteGhostImage = new Image(getClass().getResource("/whiteGhost.png").toExternalForm());
+        wallImage = new Image(getClass().getResource("/assets/wall.png").toExternalForm());
+        blueGhostImage = new Image(getClass().getResource("/assets/blueGhost.png").toExternalForm());
+        orangeGhostImage = new Image(getClass().getResource("/assets/orangeGhost.png").toExternalForm());
+        pinkGhostImage = new Image(getClass().getResource("/assets/pinkGhost.png").toExternalForm());
+        redGhostImage = new Image(getClass().getResource("/assets/redGhost.png").toExternalForm());
+        pacmanUpImage = new Image(getClass().getResource("/assets/pacmanUp.png").toExternalForm());
+        pacmanDownImage = new Image(getClass().getResource("/assets/pacmanDown.png").toExternalForm());
+        pacmanLeftImage = new Image(getClass().getResource("/assets/pacmanLeft.png").toExternalForm());
+        pacmanRightImage = new Image(getClass().getResource("/assets/pacmanRight.png").toExternalForm());
+        powerFoodImage = new Image(getClass().getResource("/assets/powerFood.png").toExternalForm());
+        scaredGhostImage = new Image(getClass().getResource("/assets/scaredGhost.png").toExternalForm());
+        whiteGhostImage = new Image(getClass().getResource("/assets/whiteGhost.png").toExternalForm());
+        cherryImage = new Image(getClass().getResource("/assets/cherry.png").toExternalForm());
     }
 
+    
+    
     public PacMan() {
-        Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT);
+        Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT + TILE_SIZE);
         gc = canvas.getGraphicsContext2D();
         getChildren().add(canvas);
 
@@ -128,6 +144,8 @@ public class PacMan extends Pane {
         setFocusTraversable(true);
         setOnMouseClicked(e -> requestFocus());
         setOnKeyPressed(e -> handleKeyPress(e.getCode()));
+
+        startCherryTimer();
 
         gameLoop = new AnimationTimer() {
             @Override
@@ -144,19 +162,54 @@ public class PacMan extends Pane {
         };
         gameLoop.start();
     }
+// =================================================================================================cherry - frutta
+    private void startCherryTimer() {
+        cherryTimer = new PauseTransition(Duration.seconds(20));
+        cherryTimer.setOnFinished(e -> spawnCherry());
+        cherryTimer.play();
+    }
+
+    private void spawnCherry() {
+        int x, y;
+        do {
+            x = random.nextInt(COLUMN_COUNT) * TILE_SIZE;
+            y = random.nextInt(ROW_COUNT) * TILE_SIZE;
+        } while (isWall(x, y));
+
+        cherry = new Block(cherryImage, x, y);
+
+        PauseTransition hideCherry = new PauseTransition(Duration.seconds(10));
+        hideCherry.setOnFinished(e -> cherry = null);
+        hideCherry.play();
+
+        cherryTimer.playFromStart();
+    }
+// =================================================================================================
+    private boolean isWall(int x, int y) {
+        for (Block wall : walls) {
+            if (wall.x == x && wall.y == y) return true;
+        }
+        return false;
+    }
 
     private void move() {
         pacman.x += pacman.velocityX;
         pacman.y += pacman.velocityY;
         if (pacman.x < -TILE_SIZE) pacman.x = BOARD_WIDTH;
         else if (pacman.x > BOARD_WIDTH) pacman.x = -TILE_SIZE;
-        
+
         for (Block wall : walls) {
             if (collision(pacman, wall) || collision(pacman, ghostPortal)) {
                 pacman.x -= pacman.velocityX;
                 pacman.y -= pacman.velocityY;
                 return;
             }
+        }
+
+        if (cherry != null && collision(pacman, cherry)) {
+            score += 400;
+            collectedFruits.add(cherry.image); // salvi l’immagine
+            cherry = null;
         }
     
         powerFoods.removeIf(powerFood -> {
@@ -195,6 +248,14 @@ public class PacMan extends Pane {
     }
 
     private void handleKeyPress(KeyCode key) {
+        if (waitingForRestart) {
+            waitingForRestart = false;
+            if (!gameOver) {
+                resetPacmanPosition(); // riposiziona Pac-Man
+                gameLoop.start();      // riavvia il loop
+            }
+            return;
+        }
         // Se il movimento è possibile, aggiorna subito la direzione
         if (canMove(key)) {
             applyDirection(key);
@@ -387,7 +448,9 @@ public class PacMan extends Pane {
             gameOver = true;
             gameLoop.stop();
         } else {
-            resetPacmanPosition();
+            waitingForRestart = true;
+            gameLoop.stop(); // Blocca il loop finché non si preme un tasto
+            draw(); // Ridisegna per mostrare lo stato attuale
         }
     }
 
@@ -411,6 +474,10 @@ public class PacMan extends Pane {
             level++;
             loadMap();
             flashing = false;
+
+            waitingForRestart = true;
+            gameLoop.stop(); // Blocca il gioco in attesa di input
+            draw();
         });
     }
 
@@ -433,15 +500,52 @@ public class PacMan extends Pane {
         // Disegna i fantasmi
         ghosts.forEach(ghost -> gc.drawImage(ghost.image, ghost.x, ghost.y, TILE_SIZE, TILE_SIZE));
         
+        // cherry 
+        if (cherry != null) {
+            gc.drawImage(cherry.image, cherry.x, cherry.y, TILE_SIZE, TILE_SIZE);
+        }
         // Disegna le vite rimanenti con l'immagine di Pac-Man
         for (int i = 0; i < lives; i++) {
             gc.drawImage(pacmanRightImage, TILE_SIZE * (i + 1), TILE_SIZE / 2.0, TILE_SIZE / 1.5, TILE_SIZE / 1.5);
         }
         
+        // ================================================================================================ SCOREBOARD ==================================================================================================================
+        gc.setFill(Color.BLACK);
+        gc.fillRect(0, BOARD_HEIGHT, BOARD_WIDTH, TILE_SIZE); // barra sotto
+
+        gc.setFill(Color.YELLOW);
+        gc.setFont(scoreFont);
+
+        // Vite (a sinistra)
+        for (int i = 0; i < lives; i++) {
+            gc.drawImage(pacmanRightImage, TILE_SIZE * (i + 0.2), BOARD_HEIGHT + TILE_SIZE / 6.0, TILE_SIZE / 1.5, TILE_SIZE / 1.5);
+        }
+
+        // Frutta raccolta (al centro)
+        int fruitSize = (int)(TILE_SIZE / 1.5);
+        int startX = BOARD_WIDTH / 2 - (collectedFruits.size() * (fruitSize + 4)) / 2;
+        for (int i = 0; i < collectedFruits.size(); i++) {
+            gc.drawImage(collectedFruits.get(i), startX + i * (fruitSize + 4), BOARD_HEIGHT + TILE_SIZE / 6.0, fruitSize, fruitSize);
+        }
+
+        // Punteggio e livello (a destra)
+        String scoreText = String.format("SCORE %06d  LVL %02d", score, level);
+        gc.fillText(scoreText, BOARD_WIDTH - 310, BOARD_HEIGHT + TILE_SIZE / 1.5);
+        // =====================================================================================================================================================================================================================
+
         // Disegna il punteggio e il livello
-        gc.setFill(Color.WHITE);
+        /*gc.setFill(Color.WHITE);
         gc.setFont(new Font("Arial", 18));
         gc.fillText("Score: " + score + " Level: " + level, TILE_SIZE * 5, TILE_SIZE / 2.0);
+
+        int fruitSize = TILE_SIZE / 2;
+        int startX = TILE_SIZE * 12; // o dove preferisci
+        int startY = TILE_SIZE / 4;
+
+        for (int i = 0; i < collectedFruits.size(); i++) {
+            gc.drawImage(collectedFruits.get(i), startX + i * (fruitSize + 4), startY, fruitSize, fruitSize);
+        }*/
+
 
         // Disegna la linea del portale
         if (ghostPortal != null) {
