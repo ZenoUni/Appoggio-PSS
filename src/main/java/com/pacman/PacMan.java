@@ -53,8 +53,17 @@ public class PacMan extends Pane {
         ghostManager  = new GhostManager(
             gameMap.getGhosts(),
             gameMap.getGhostPortal(),
+            gameMap.getPowerFoods(),
+            gameMap
+        );
+
+        gameMap.resetEntities();
+        ghostManager.resetGhosts(
+            gameMap.getGhosts(),
+            gameMap.getGhostPortal(),
             gameMap.getPowerFoods()
         );
+
         scoreManager  = new ScoreManager(scoreFont, imageLoader);
 
         pacman = gameMap.getPacman();
@@ -80,6 +89,8 @@ public class PacMan extends Pane {
                         storedDirection = null;
                     }
                     movePacman();
+                    ghostManager.moveGhosts(); // <--- AGGIUNGI QUESTA RIGA!!
+
                     draw();
 
                     if (gameMap.getFoods().isEmpty() && gameMap.getPowerFoodCount() == 0) {
@@ -90,6 +101,7 @@ public class PacMan extends Pane {
         };
         gameLoop.start();
     }
+
 
     private boolean isAligned(Block b) {
         return (b.x % TILE_SIZE == 0) && (b.y % TILE_SIZE == 0);
