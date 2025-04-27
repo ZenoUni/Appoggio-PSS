@@ -22,3 +22,8 @@ javafx {
 application {
     mainClass = 'com.pacman.App'
 }
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
