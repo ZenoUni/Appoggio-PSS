@@ -1,41 +1,51 @@
 package com.pacman;
 
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 public class GhostManager {
 
     private List<Block> ghosts;
     private List<Block> cagedGhosts;
-    private List<RespawnGhost> ghostsToRespawn;
+    private List<RespawnGhost> respawningGhosts;
     private Block ghostPortal;
     private List<Block> powerFoods;
     private GameMap map;
 
     private boolean ghostsAreScared = false;
     private long scaredEndTime = 0;
+    private long lastReleaseTime = 0;
 
-    private long nextReleaseTime = 0; // timer per rilascio dei fantasmi
+    private final Image scaredGhostImage;
 
     public GhostManager(List<Block> ghosts, Block ghostPortal, List<Block> powerFoods, GameMap map) {
+        this.scaredGhostImage = new Image(getClass().getResource("/assets/scaredGhost.png").toExternalForm());
         this.ghosts = new ArrayList<>();
-        this.cagedGhosts = new ArrayList<>(ghosts);
-        this.ghostsToRespawn = new ArrayList<>();
+        this.cagedGhosts = new ArrayList<>();
+        this.respawningGhosts = new ArrayList<>();
         this.ghostPortal = ghostPortal;
         this.powerFoods = powerFoods;
         this.map = map;
 
-        // All'inizio libero subito 1-2 fantasmi
-        releaseGhost();
-        releaseGhost();
-        nextReleaseTime = System.currentTimeMillis() + 5000; // primo rilascio dopo 5 secondi
+        if (!ghosts.isEmpty()) {
+            this.ghosts.add(ghosts.get(0)); // il primo fantasma è libero
+            for (int i = 1; i < ghosts.size(); i++) {
+                this.cagedGhosts.add(ghosts.get(i)); // gli altri in gabbia
+            }
+        }
     }
 
     public void draw(GraphicsContext gc) {
         for (Block ghost : ghosts) {
-            gc.drawImage(ghost.image, ghost.x, ghost.y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
+            if (ghostsAreScared) {
+                gc.drawImage(scaredGhostImage, ghost.x, ghost.y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
+            } else {
+                gc.drawImage(ghost.image, ghost.x, ghost.y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
+            }
         }
         for (Block ghost : cagedGhosts) {
             gc.drawImage(ghost.image, ghost.x, ghost.y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
@@ -63,7 +73,7 @@ public class GhostManager {
 
     public void activateScaredMode() {
         ghostsAreScared = true;
-        scaredEndTime = System.currentTimeMillis() + 7000;
+        scaredEndTime = System.currentTimeMillis() + 7_000;
     }
 
     public void updateScaredState() {
@@ -89,45 +99,82 @@ public class GhostManager {
             if (ghostsAreScared) {
                 points += 200;
                 eaten.add(ghost);
-                ghostsToRespawn.add(new RespawnGhost(ghost, System.currentTimeMillis() + 5000)); // respawn in 5 secondi
             } else {
                 onPacmanHit.run();
                 return 0;
             }
         }
 
-        ghosts.removeAll(eaten);
+        for (Block ghost : eaten) {
+            ghosts.remove(ghost);
+            scheduleGhostRespawn(ghost);
+        }
         return points;
     }
 
-    public void resetGhosts(List<Block> newGhosts, Block newPortal, List<Block> newPowerFoods) {
-        this.ghosts = new ArrayList<>();
-        this.cagedGhosts = new ArrayList<>(newGhosts);
-        this.ghostsToRespawn.clear();
-        this.ghostPortal = newPortal;
-        this.powerFoods = newPowerFoods;
-        this.ghostsAreScared = false;
-        this.scaredEndTime = 0;
+    private void scheduleGhostRespawn(Block ghost) {
+        ghost.x = ghostPortal.x + (PacMan.TILE_SIZE / 2);
+        ghost.y = ghostPortal.y + (PacMan.TILE_SIZE / 2);
+        ghost.direction = Direction.UP;
+        ghost.isExiting = true;
+        respawningGhosts.add(new RespawnGhost(ghost, System.currentTimeMillis() + 5000)); // 5 secondi di delay
+    }
 
-        // Libero subito 1-2 fantasmi
-        releaseGhost();
-        releaseGhost();
-        nextReleaseTime = System.currentTimeMillis() + 5000; // prossimo rilascio tra 5 secondi
+    private void checkRespawningGhosts() {
+        long now = System.currentTimeMillis();
+        Iterator<RespawnGhost> iterator = respawningGhosts.iterator();
+        while (iterator.hasNext()) {
+            RespawnGhost rg = iterator.next();
+            if (now >= rg.respawnTime) {
+                ghosts.add(rg.ghost);
+                iterator.remove();
+            }
+        }
+    }
+
+    private void releaseCagedGhost() {
+        if (!cagedGhosts.isEmpty()) {
+            Block ghost = cagedGhosts.remove(0);
+            ghost.x = ghostPortal.x + (PacMan.TILE_SIZE / 2);
+            ghost.y = ghostPortal.y + (PacMan.TILE_SIZE / 2);
+            ghost.direction = Direction.UP;
+            ghost.isExiting = true;
+            ghosts.add(ghost);
+        }
+    }
+
+    private void checkCagedGhostsRelease() {
+        long now = System.currentTimeMillis();
+        if (now - lastReleaseTime > 4000) { // ogni 4 secondi
+            releaseCagedGhost();
+            lastReleaseTime = now;
+        }
     }
 
     public void moveGhosts() {
-        updateGhostRespawns();
-        releaseGhostsIfNeeded();
+        checkRespawningGhosts();
+        checkCagedGhostsRelease();
 
         for (Block ghost : ghosts) {
             int speed = 2;
             int newX = ghost.x;
             int newY = ghost.y;
 
+            if (ghost.isExiting) {
+                newY -= speed;
+                ghost.y = newY;
+
+                if (ghost.y + ghost.height < ghostPortal.y) {
+                    ghost.isExiting = false;
+                    ghost.direction = Direction.randomDirection();
+                }
+                continue;
+            }
+
             switch (ghost.direction) {
-                case UP    -> newY -= speed;
-                case DOWN  -> newY += speed;
-                case LEFT  -> newX -= speed;
+                case UP -> newY -= speed;
+                case DOWN -> newY += speed;
+                case LEFT -> newX -= speed;
                 case RIGHT -> newX += speed;
             }
 
@@ -140,66 +187,6 @@ public class GhostManager {
 
             map.wrapAround(ghost);
         }
-
-        // Anche i fantasmi nella gabbia si possono muovere su/giù
-        for (Block ghost : cagedGhosts) {
-            int speed = 1;
-            if (ghost.direction == null) {
-                ghost.direction = Direction.UP;
-            }
-
-            int newX = ghost.x;
-            int newY = ghost.y;
-
-            if (ghost.direction == Direction.UP) {
-                newY -= speed;
-                if (newY < ghostPortal.y) {
-                    ghost.direction = Direction.DOWN;
-                }
-            } else if (ghost.direction == Direction.DOWN) {
-                newY += speed;
-                if (newY > ghostPortal.y + PacMan.TILE_SIZE) {
-                    ghost.direction = Direction.UP;
-                }
-            }
-            ghost.x = newX;
-            ghost.y = newY;
-        }
-    }
-
-    private void updateGhostRespawns() {
-        long now = System.currentTimeMillis();
-        List<RespawnGhost> toRespawn = new ArrayList<>();
-
-        for (RespawnGhost respawnGhost : ghostsToRespawn) {
-            if (now >= respawnGhost.respawnTime) {
-                // Respawn fantasma all'interno della gabbia
-                respawnGhost.ghost.x = ghostPortal.x + PacMan.TILE_SIZE / 2 - respawnGhost.ghost.width / 2;
-                respawnGhost.ghost.y = ghostPortal.y + PacMan.TILE_SIZE / 2 - respawnGhost.ghost.height / 2;
-                cagedGhosts.add(respawnGhost.ghost);
-                toRespawn.add(respawnGhost);
-            }
-        }
-
-        ghostsToRespawn.removeAll(toRespawn);
-    }
-
-    private void releaseGhostsIfNeeded() {
-        if (cagedGhosts.isEmpty()) return;
-
-        long now = System.currentTimeMillis();
-        if (now >= nextReleaseTime) {
-            releaseGhost();
-            nextReleaseTime = now + 5000; // rilascio ogni 5 secondi
-        }
-    }
-
-    private void releaseGhost() {
-        if (!cagedGhosts.isEmpty()) {
-            Block ghost = cagedGhosts.remove(0);
-            ghosts.add(ghost);
-            ghost.direction = Direction.UP; // escono andando su
-        }
     }
 
     private boolean collidesWithWall(int x, int y) {
@@ -207,12 +194,32 @@ public class GhostManager {
         return map.isCollisionWithWallOrPortal(temp);
     }
 
-    /** Classe interna per gestire il respawn */
-    private static class RespawnGhost {
-        public Block ghost;
-        public long respawnTime;
+    public void resetGhosts(List<Block> newGhosts, Block newPortal, List<Block> newPowerFoods) {
+        this.ghosts.clear();
+        this.cagedGhosts.clear();
+        this.respawningGhosts.clear();
 
-        public RespawnGhost(Block ghost, long respawnTime) {
+        this.ghostPortal = newPortal;
+        this.powerFoods = newPowerFoods;
+
+        if (!newGhosts.isEmpty()) {
+            this.ghosts.add(newGhosts.get(0)); // 1 subito libero
+            for (int i = 1; i < newGhosts.size(); i++) {
+                this.cagedGhosts.add(newGhosts.get(i)); // gli altri in gabbia
+            }
+        }
+
+        this.ghostsAreScared = false;
+        this.scaredEndTime = 0;
+        this.lastReleaseTime = System.currentTimeMillis();
+    }
+
+    // Classe interna per gestire il tempo di respawn
+    private static class RespawnGhost {
+        Block ghost;
+        long respawnTime;
+
+        RespawnGhost(Block ghost, long respawnTime) {
             this.ghost = ghost;
             this.respawnTime = respawnTime;
         }

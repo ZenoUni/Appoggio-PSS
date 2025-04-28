@@ -108,27 +108,34 @@ public class PacMan extends Pane {
     }
 
     private void draw() {
-        gc.setFill(Color.BLACK);
-        gc.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+    gc.setFill(Color.BLACK);
+    gc.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT + TILE_SIZE);
 
-        gameMap.draw(gc);
-        cherryManager.draw(gc);
+    // --- Sposta il disegno della mappa in basso di TILE_SIZE ---
+    gc.save();                      // Salva lo stato attuale
+    gc.translate(0, TILE_SIZE);      // Tutto quello che disegno ora è spostato in basso di TILE_SIZE
 
-        gc.drawImage(pacman.image, pacman.x, pacman.y, TILE_SIZE, TILE_SIZE);
+    gameMap.draw(gc);
+    cherryManager.draw(gc);
+    gc.drawImage(pacman.image, pacman.x, pacman.y, TILE_SIZE, TILE_SIZE);
+    ghostManager.draw(gc);
+    ghostManager.drawPortal(gc);
 
-        ghostManager.draw(gc);
-        ghostManager.drawPortal(gc);
+    gc.restore();                   // Torna alla posizione normale (senza offset)
 
-        scoreManager.drawScoreboard(
-            gc, lives, gameMap.getCollectedFruits(), score, level
-        );
+    // --- Disegna la scoreboard in alto ---
+    scoreManager.drawScoreboard(
+        gc, lives, gameMap.getCollectedFruits(), score, level
+    );
 
-        if (gameOver) {
-            gc.setFill(Color.ORANGE);
-            gc.setFont(new Font("Arial", 50));
-            gc.fillText("GAME OVER", BOARD_WIDTH / 4.0, BOARD_HEIGHT / 2.0);
-        }
+    if (gameOver) {
+        gc.setFill(Color.ORANGE);
+        gc.setFont(new Font("Arial", 50));
+        // ATTENZIONE: qui BOARD_HEIGHT include già lo spazio della mappa
+        gc.fillText("GAME OVER", BOARD_WIDTH / 4.0, (BOARD_HEIGHT + TILE_SIZE) / 2.0);
     }
+}
+
 
     private void handleKeyPress(KeyCode key) {
         if (waitingForRestart) {
@@ -159,6 +166,7 @@ public class PacMan extends Pane {
             }
 
             score += ghostManager.handleGhostCollisions(pacman, this::loseLife);
+            score += cherryManager.collectCherry(pacman);
         }
     }
 
