@@ -62,6 +62,14 @@ public class CherryManager {
         return 0;
     }
 
+    public void reset() {
+        if (cherryTimer != null) {
+            cherryTimer.stop();
+        }
+        cherry = null;
+        startCherryTimer(); 
+    }
+
     // helper: esponi la lista interna dei frutti (collectedFruits è in GameMap)
     private java.util.List<javafx.scene.image.Image> collectedFruits() {
         return game.gameMap.getCollectedFruits();

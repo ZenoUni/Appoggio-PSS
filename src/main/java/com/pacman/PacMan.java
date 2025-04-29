@@ -32,11 +32,17 @@ public class PacMan extends Pane {
 
     private final ImageLoader   imageLoader;
     final GameMap               gameMap;
-    private final CherryManager cherryManager;
+    private final FruitManager fruitManager;
     private final GhostManager  ghostManager;
     private final ScoreManager  scoreManager;
 
     private final Font scoreFont;
+    private final Font messageFont;
+
+    // Variabili per alternare la bocca aperta e chiusa
+    private int animationCounter = 0;
+    private boolean mouthOpen = true;
+
 
     public PacMan() {
         Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT + TILE_SIZE);
@@ -47,9 +53,15 @@ public class PacMan extends Pane {
             getClass().getResource("/assets/fonts/PressStart2P.ttf").toExternalForm(), 12
         );
 
+        messageFont = Font.loadFont(
+            getClass().getResource("/assets/fonts/PressStart2P.ttf").toExternalForm(), 24
+        );
+
+
         imageLoader   = new ImageLoader();
         gameMap       = new GameMap(imageLoader);
-        cherryManager = new CherryManager(this, imageLoader);
+        fruitManager = new FruitManager(this, imageLoader);
+        
         ghostManager  = new GhostManager(
             gameMap.getGhosts(),
             gameMap.getGhostPortal(),
@@ -72,7 +84,7 @@ public class PacMan extends Pane {
         setOnMouseClicked(e -> requestFocus());
         setOnKeyPressed(e -> handleKeyPress(e.getCode()));
 
-        cherryManager.startCherryTimer();
+        fruitManager.startFruitTimer();
         startGameLoop();
     }
 
@@ -89,7 +101,7 @@ public class PacMan extends Pane {
                         storedDirection = null;
                     }
                     movePacman();
-                    ghostManager.moveGhosts(); // <--- AGGIUNGI QUESTA RIGA!!
+                    ghostManager.moveGhosts(); 
 
                     draw();
 
@@ -107,6 +119,12 @@ public class PacMan extends Pane {
         return (b.x % TILE_SIZE == 0) && (b.y % TILE_SIZE == 0);
     }
 
+    private double getTextWidth(String text, Font font) {
+        javafx.scene.text.Text helper = new javafx.scene.text.Text(text);
+        helper.setFont(font);
+        return helper.getLayoutBounds().getWidth();
+    }
+
     private void draw() {
     gc.setFill(Color.BLACK);
     gc.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT + TILE_SIZE);
@@ -116,7 +134,7 @@ public class PacMan extends Pane {
     gc.translate(0, TILE_SIZE);      // Tutto quello che disegno ora è spostato in basso di TILE_SIZE
 
     gameMap.draw(gc);
-    cherryManager.draw(gc);
+    fruitManager.draw(gc);
     gc.drawImage(pacman.image, pacman.x, pacman.y, TILE_SIZE, TILE_SIZE);
     ghostManager.draw(gc);
     ghostManager.drawPortal(gc);
@@ -128,17 +146,37 @@ public class PacMan extends Pane {
         gc, lives, gameMap.getCollectedFruits(), score, level
     );
 
-    if (gameOver) {
-        gc.setFill(Color.ORANGE);
-        gc.setFont(new Font("Arial", 50));
-        // ATTENZIONE: qui BOARD_HEIGHT include già lo spazio della mappa
-        gc.fillText("GAME OVER", BOARD_WIDTH / 4.0, (BOARD_HEIGHT + TILE_SIZE) / 2.0);
+        if (gameOver) {
+        gc.setFill(Color.rgb(255, 0, 0)); // rosso vivo come nel classico
+        gc.setFont(messageFont);            // usa PressStart2P
+
+        String message = "GAME OVER";
+        double textWidth = getTextWidth(message, messageFont);
+
+        gc.fillText(
+            message,
+            (BOARD_WIDTH - textWidth) / 2,
+            (BOARD_HEIGHT + TILE_SIZE) / 2
+        );
+
+        String restartMsg = "PRESS ANY KEY";
+        double restartWidth = getTextWidth(restartMsg, messageFont);
+
+        gc.setFill(Color.YELLOW);
+        gc.fillText(
+            restartMsg,
+            (BOARD_WIDTH - restartWidth) / 2,
+            (BOARD_HEIGHT + TILE_SIZE) / 2 + 30
+        );
     }
 }
 
 
     private void handleKeyPress(KeyCode key) {
         if (waitingForRestart) {
+            if (gameOver) {
+                resetGame(); 
+            }
             waitingForRestart = false;
             gameLoop.start();
             return;
@@ -156,6 +194,16 @@ public class PacMan extends Pane {
                 case RIGHT -> pacman.x += 4;
                 default    -> {}
             }
+
+            // Alterna la bocca solo se PacMan si muove
+            animationCounter++;
+            if (animationCounter >= 10) {
+                mouthOpen = !mouthOpen;
+                animationCounter = 0;
+            }
+
+            applyImage(currentDirection); // <-- sposta qui
+
             gameMap.wrapAround(pacman);
 
             score += gameMap.collectFood(pacman);
@@ -166,24 +214,32 @@ public class PacMan extends Pane {
             }
 
             score += ghostManager.handleGhostCollisions(pacman, this::loseLife);
-            score += cherryManager.collectCherry(pacman);
+            score += fruitManager.collectFruit(pacman);
         }
     }
 
+
     private void applyImage(KeyCode dir) {
-        switch (dir) {
-            case UP    -> pacman.image = imageLoader.getPacmanUpImage();
-            case DOWN  -> pacman.image = imageLoader.getPacmanDownImage();
-            case LEFT  -> pacman.image = imageLoader.getPacmanLeftImage();
-            case RIGHT -> pacman.image = imageLoader.getPacmanRightImage();
-            default    -> {}
-        }
+    if (!mouthOpen) {
+        pacman.image = imageLoader.getPacmanClosedImage(); 
+        return;
     }
+
+    switch (dir) {
+        case UP    -> pacman.image = imageLoader.getPacmanUpImage();
+        case DOWN  -> pacman.image = imageLoader.getPacmanDownImage();
+        case LEFT  -> pacman.image = imageLoader.getPacmanLeftImage();
+        case RIGHT -> pacman.image = imageLoader.getPacmanRightImage();
+        default    -> {}
+    }
+}
+
 
     private void loseLife() {
         lives--;
         if (lives <= 0) {
             gameOver = true;
+            waitingForRestart = true;
             gameLoop.stop();
             draw();
         } else {
@@ -202,6 +258,25 @@ public class PacMan extends Pane {
             draw();
         }
     }
+
+    private void resetGame() {
+        gameOver = false;
+        score = 0;
+        lives = 3;
+        level = 1;
+        currentDirection = null;
+        storedDirection = null;
+
+        gameMap.reload();
+        pacman = gameMap.resetPacman();
+        ghostManager.resetGhosts(
+            gameMap.getGhosts(),
+            gameMap.getGhostPortal(),
+            gameMap.getPowerFoods()
+        );
+        fruitManager.reset();
+    }
+
 
     private void nextLevel() {
         level++;
