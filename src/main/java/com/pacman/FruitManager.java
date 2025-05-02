@@ -34,11 +34,22 @@ public class FruitManager {
     }
 
     private void spawnFruit() {
-        int x = random.nextInt(PacMan.COLUMN_COUNT) * PacMan.TILE_SIZE;
-        int y = random.nextInt(PacMan.ROW_COUNT) * PacMan.TILE_SIZE;
-        FruitType type = FruitType.values()[random.nextInt(FruitType.values().length)];
-        fruits.add(new Fruit(x, y, type));
+        for (int attempts = 0; attempts < 100; attempts++) { // evita loop infiniti
+            int col = random.nextInt(PacMan.COLUMN_COUNT);
+            int row = random.nextInt(PacMan.ROW_COUNT);
+            int x = col * PacMan.TILE_SIZE;
+            int y = row * PacMan.TILE_SIZE;
+
+            Block tempBlock = new Block(null, x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
+
+            if (!game.gameMap.isCollisionWithWallOrPortal(tempBlock)) {
+                FruitType type = FruitType.values()[random.nextInt(FruitType.values().length)];
+                fruits.add(new Fruit(x, y, type));
+                break; // fruit placed successfully
+            }
+        }
     }
+
 
     public void draw(GraphicsContext gc) {
         for (Fruit fruit : fruits) {

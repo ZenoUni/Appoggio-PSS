@@ -1,4 +1,4 @@
-package com.pacman;
+/*package com.pacman;
 
 import javafx.animation.PauseTransition;
 import javafx.scene.canvas.GraphicsContext;
@@ -75,3 +75,4 @@ public class CherryManager {
         return game.gameMap.getCollectedFruits();
     }
 }
+*/

@@ -43,7 +43,6 @@ public class PacMan extends Pane {
     private int animationCounter = 0;
     private boolean mouthOpen = true;
 
-
     public PacMan() {
         Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT + TILE_SIZE);
         gc = canvas.getGraphicsContext2D();
