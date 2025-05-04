@@ -152,39 +152,41 @@ public class GhostManager {
     }
 
     public void moveGhosts() {
+        int speed = 2;             // <<-- DICHIARAZIONE DI speed
+    
         checkRespawningGhosts();
         checkCagedGhostsRelease();
-
+    
         for (Block ghost : ghosts) {
-            int speed = 2;
-            int newX = ghost.x;
-            int newY = ghost.y;
-
+            // 1) esci dalla gabbia
             if (ghost.isExiting) {
-                newY -= speed;
-                ghost.y = newY;
-
+                ghost.y -= speed;
                 if (ghost.y + ghost.height < ghostPortal.y) {
                     ghost.isExiting = false;
                     ghost.direction = Direction.randomDirection();
                 }
+                map.wrapAround(ghost);
                 continue;
             }
-
+    
+            // 2) movimento casuale
+            int newX = ghost.x, newY = ghost.y;
             switch (ghost.direction) {
-                case UP -> newY -= speed;
-                case DOWN -> newY += speed;
-                case LEFT -> newX -= speed;
+                case UP    -> newY -= speed;
+                case DOWN  -> newY += speed;
+                case LEFT  -> newX -= speed;
                 case RIGHT -> newX += speed;
             }
-
+    
+            // 3) collisione con muri (T non è muro)
             if (!collidesWithWall(newX, newY)) {
                 ghost.x = newX;
                 ghost.y = newY;
             } else {
                 ghost.direction = Direction.randomDirection();
             }
-
+    
+            // 4) tunnel per fantasmi
             map.wrapAround(ghost);
         }
     }
