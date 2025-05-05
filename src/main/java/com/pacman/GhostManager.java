@@ -23,11 +23,13 @@ public class GhostManager {
     private long lastReleaseTime = 0;
 
     private final Image scaredGhostImage;
+    private final Image whiteGhostImage;
     private final ImageLoader imageLoader;  // per ricaricare le immagini base
 
     public GhostManager(List<Block> ghosts, Block ghostPortal, List<Block> powerFoods, GameMap map) {
-        this.scaredGhostImage = new Image(getClass().getResource("/assets/scaredGhost.png").toExternalForm());
         this.imageLoader = new ImageLoader();
+        this.scaredGhostImage = imageLoader.getScaredGhostImage();
+        this.whiteGhostImage  = imageLoader.getWhiteGhostImage();
         this.ghosts = new ArrayList<>();
         this.cagedGhosts = new ArrayList<>();
         this.respawningGhosts = new ArrayList<>();
@@ -45,15 +47,41 @@ public class GhostManager {
     }
 
     public void draw(GraphicsContext gc) {
+        long timeLeft = getTimeLeft();
+    
+        // Ora lampeggia ogni 500 ms anziché ogni 1000 ms
+        boolean blinkingPhase = false;
+        if (timeLeft > 0 && timeLeft <= 3000) {
+            // Dividiamo per 500 ms e guardiamo il bit di parità
+            long halfSecondsLeft = timeLeft / 500;
+            blinkingPhase = (halfSecondsLeft % 2 == 1);
+        }
+    
         for (Block ghost : ghosts) {
-            Image img = ghostsAreScared ? scaredGhostImage : ghost.image;
+            Image img;
+            if (!ghost.isScared) {
+                img = ghost.image;
+            } else if (blinkingPhase) {
+                img = whiteGhostImage;
+            } else {
+                img = scaredGhostImage;
+            }
             gc.drawImage(img, ghost.x, ghost.y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
         }
         for (Block ghost : cagedGhosts) {
-            Image img = ghostsAreScared ? scaredGhostImage : ghost.image;
+            Image img;
+            if (!ghost.isScared) {
+                img = ghost.image;
+            } else if (blinkingPhase) {
+                img = whiteGhostImage;
+            } else {
+                img = scaredGhostImage;
+            }
             gc.drawImage(img, ghost.x, ghost.y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
         }
     }
+    
+    
 
     public void drawPortal(GraphicsContext gc) {
         if (ghostPortal != null) {
@@ -69,20 +97,25 @@ public class GhostManager {
     public void activateScaredMode() {
         ghostsAreScared = true;
         scaredEndTime = System.currentTimeMillis() + SCARED_DURATION_MS;
+        for (Block ghost : ghosts) ghost.isScared = true;
+        for (Block ghost : cagedGhosts) ghost.isScared = true;
     }
+    
 
     private void updateScaredState() {
         if (ghostsAreScared && System.currentTimeMillis() > scaredEndTime) {
             ghostsAreScared = false;
-            // Ripristina le immagini originali di tutti i fantasmi in gabbia
-            for (Block ghost : cagedGhosts) {
+            for (Block ghost : ghosts) {
+                ghost.isScared = false;
                 resetBlockImage(ghost);
             }
-            for (Block ghost : ghosts) {
+            for (Block ghost : cagedGhosts) {
+                ghost.isScared = false;
                 resetBlockImage(ghost);
             }
         }
     }
+    
 
     /** Ricarica l'immagine base da ImageLoader in base al colore o tipo del fantasma */
     /** Ripristina l'immagine base dal campo originalImage di Block */
@@ -103,8 +136,7 @@ public class GhostManager {
                                pacman.y < ghost.y + ghost.height &&
                                pacman.y + pacman.height > ghost.y;
             if (!collided) continue;
-
-            if (ghostsAreScared) {
+            if (ghost.isScared) {
                 points += 200;
                 eaten.add(ghost);
             } else {
@@ -123,12 +155,14 @@ public class GhostManager {
     }
 
     private void scheduleGhostRespawn(Block ghost) {
+        ghost.isScared = false;
+        resetBlockImage(ghost); // assicura l'immagine normale
         ghost.x = ghostPortal.x + (PacMan.TILE_SIZE / 2);
         ghost.y = ghostPortal.y + (PacMan.TILE_SIZE / 2);
         ghost.direction = Direction.UP;
         ghost.isExiting = true;
         respawningGhosts.add(new RespawnGhost(ghost, System.currentTimeMillis() + 1000));
-    }
+    }    
 
     private void checkRespawningGhosts() {
         long now = System.currentTimeMillis();
@@ -228,4 +262,10 @@ public class GhostManager {
             this.respawnTime = respawnTime;
         }
     }
+
+    /** Restituisce quanto manca (in ms) alla fine del scared mode */
+    private long getTimeLeft() {
+        return Math.max(0, scaredEndTime - System.currentTimeMillis());
+    }
+
 }

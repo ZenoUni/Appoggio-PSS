@@ -1,6 +1,8 @@
 package com.pacman;
 
 import javafx.animation.AnimationTimer;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
@@ -25,6 +27,7 @@ public class PacMan extends Pane {
     private boolean gameOver          = false;
     private boolean flashing          = false;
     private boolean waitingForRestart = false;
+    private boolean waitingForLifeKey = false;
 
     private KeyCode currentDirection = null;
     private KeyCode storedDirection  = null;
@@ -38,18 +41,24 @@ public class PacMan extends Pane {
 
     private final Font scoreFont;
     private final Font messageFont;
+    private final Font gameOverFont;      // per il “GAME OVER” grande
+    private final Font returnKeyFont;     // per il “PRESS ANY KEY” piccolo
+    private final MainMenu mainMenu;
 
     private int  animationCounter = 0;
     private boolean mouthOpen     = true;
 
-    public PacMan() {
+    public PacMan(MainMenu menu) {
+        this.mainMenu = menu;
         Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT + TILE_SIZE);
         gc = canvas.getGraphicsContext2D();
         getChildren().add(canvas);
 
         scoreFont   = Font.loadFont(getClass().getResource("/assets/fonts/PressStart2P.ttf").toExternalForm(), 12);
         messageFont = Font.loadFont(getClass().getResource("/assets/fonts/PressStart2P.ttf").toExternalForm(), 24);
-
+        gameOverFont    = Font.loadFont(getClass().getResource("/assets/fonts/PressStart2P.ttf").toExternalForm(), 48);
+        returnKeyFont   = Font.loadFont(getClass().getResource("/assets/fonts/PressStart2P.ttf").toExternalForm(), 16);
+        
         imageLoader  = new ImageLoader();
         gameMap      = new GameMap(imageLoader);
         fruitManager = new FruitManager(this, imageLoader);
@@ -68,6 +77,7 @@ public class PacMan extends Pane {
         fruitManager.startFruitTimer();
         startGameLoop();
     }
+
 
     private void startGameLoop() {
         gameLoop = new AnimationTimer() {
@@ -181,14 +191,28 @@ public class PacMan extends Pane {
     }
 
     private void handleKeyPress(KeyCode key) {
-        if (waitingForRestart) {
-            if (gameOver) resetGame();
-            waitingForRestart = false;
+        if (gameOver) {
+            // torniamo al menu al primo tasto
+            mainMenu.returnToMenu();
+            return;
+        }
+        if (waitingForLifeKey) {
+            // riprendi il gioco quando perdi una vita
+            waitingForLifeKey = false;
+            // resetta posizione e loop
+            gameMap.resetEntities();
+            pacman = gameMap.getPacman();
+            ghostManager.resetGhosts(gameMap.getGhosts(), gameMap.getGhostPortal(), gameMap.getPowerFoods());
+            currentDirection = null;
+            storedDirection  = null;
             gameLoop.start();
             return;
         }
+        // gioco normale: registriamo la direzione
         storedDirection = key;
     }
+    
+    
 
     private boolean collision(Block a, Block c) {
         return a.x < c.x + c.width &&
@@ -205,23 +229,46 @@ public class PacMan extends Pane {
 
     private void loseLife() {
         lives--;
+        gameLoop.stop();  // blocca sempre
         if (lives <= 0) {
             gameOver = true;
-            waitingForRestart = true;
-            gameLoop.stop();
-            draw();
+            drawGameOver();
         } else {
-            gameMap.resetEntities();
-            pacman = gameMap.getPacman();
-            ghostManager.resetGhosts(gameMap.getGhosts(), gameMap.getGhostPortal(), gameMap.getPowerFoods());
-            currentDirection = null;
-            storedDirection  = null;
-            waitingForRestart = true;
-            gameLoop.stop();
-            draw();
+            waitingForLifeKey = true;
+            drawLifeLost();
         }
     }
+    
+    private void drawLifeLost() {
+        draw();  // ridisegna
+        // semplice messaggio al centro
+        gc.setFill(Color.WHITE);
+        gc.setFont(returnKeyFont);
+        String msg = "PRESS ANY KEY TO CONTINUE";
+        double w = getTextWidth(msg, returnKeyFont);
+        gc.fillText(msg, (BOARD_WIDTH - w) / 2, (BOARD_HEIGHT + TILE_SIZE) / 2);
+    }
+    
 
+    private void drawGameOver() {
+        draw();  // ridisegna il campo sottostante
+    
+        // Titolo arancione, molto grande
+        gc.setFill(Color.ORANGE);
+        gc.setFont(gameOverFont);
+        String msg = "GAME OVER";
+        double w = getTextWidth(msg, gameOverFont);
+        gc.fillText(msg, (BOARD_WIDTH - w) / 2, (BOARD_HEIGHT + TILE_SIZE) / 2);
+    
+        // Sotto, invito in giallo, più piccolo
+        String prompt = "PRESS ANY KEY TO RETURN";
+        gc.setFill(Color.YELLOW);
+        gc.setFont(returnKeyFont);
+        double pw = getTextWidth(prompt, returnKeyFont);
+        gc.fillText(prompt, (BOARD_WIDTH - pw) / 2, (BOARD_HEIGHT + TILE_SIZE) / 2 + 40);
+    }
+    
+    
     private void resetGame() {
         gameOver = false;
         score    = 0;
