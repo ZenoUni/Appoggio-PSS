@@ -13,6 +13,17 @@ public class FruitManager {
     private final List<Fruit> fruits;
     private final Random random;
 
+    private Thread fruitThread;
+    private volatile boolean running = false;
+
+    private int fruitsSpawnedThisLevel = 0;
+    private boolean waitingForSecondFruit = false;
+
+    private static final int MAX_FRUITS_PER_LEVEL = 2;
+    private static final int FRUIT_VISIBLE_TIME_MS = 8000;
+    private static final int FIRST_FRUIT_DELAY_MS = 20000;
+    private static final int SECOND_FRUIT_DELAY_MS = 20000;
+
     public FruitManager(PacMan game, ImageLoader imageLoader) {
         this.game = game;
         this.imageLoader = imageLoader;
@@ -21,45 +32,72 @@ public class FruitManager {
     }
 
     public void startFruitTimer() {
-        new Thread(() -> {
+        if (running) return;
+        running = true;
+        fruitsSpawnedThisLevel = 0;
+        waitingForSecondFruit = false;
+
+        fruitThread = new Thread(() -> {
             try {
-                while (true) {
-                    Thread.sleep(10000); // Fa spawnare una frutta ogni 10 secondi
-                    spawnFruit();
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                Thread.sleep(FIRST_FRUIT_DELAY_MS);
+                if (!running) return;
+
+                spawnFruitAtFixedPoint();
+
+                // Aspetta che venga mangiata o scadano gli 8 secondi
+                waitForFruitToBeEatenOrExpire();
+
+                if (!running) return;
+
+                Thread.sleep(SECOND_FRUIT_DELAY_MS);
+                if (!running) return;
+
+                spawnFruitAtFixedPoint();
+                waitForFruitToBeEatenOrExpire();
+
+            } catch (InterruptedException ignored) {
             }
-        }).start();
+        });
+        fruitThread.setDaemon(true);
+        fruitThread.start();
     }
 
-    private void spawnFruit() {
-        for (int attempts = 0; attempts < 100; attempts++) { // evita loop infiniti
-            int col = random.nextInt(PacMan.COLUMN_COUNT);
-            int row = random.nextInt(PacMan.ROW_COUNT);
-            int x = col * PacMan.TILE_SIZE;
-            int y = row * PacMan.TILE_SIZE;
-
-            Block tempBlock = new Block(null, x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
-
-            if (!game.gameMap.isCollisionWithWallOrPortal(tempBlock)) {
-                FruitType type = FruitType.values()[random.nextInt(FruitType.values().length)];
-                fruits.add(new Fruit(x, y, type));
-                break; // fruit placed successfully
-            }
+    public void pauseFruitTimer() {
+        running = false;
+        if (fruitThread != null) {
+            fruitThread.interrupt();
         }
     }
 
+    private void spawnFruitAtFixedPoint() {
+        if (fruitsSpawnedThisLevel >= MAX_FRUITS_PER_LEVEL) return;
 
-    public void draw(GraphicsContext gc) {
-        for (Fruit fruit : fruits) {
-            Image fruitImage = switch (fruit.getType()) {
-                case CHERRY -> imageLoader.getCherryImage();
-                case APPLE -> imageLoader.getAppleImage();
-                case STRAWBERRY -> imageLoader.getStrawberryImage();
-            };
-            gc.drawImage(fruitImage, fruit.getX(), fruit.getY(), PacMan.TILE_SIZE, PacMan.TILE_SIZE);
+        int readyRow = game.getReadyRow(); // ← Metodo che devi implementare in PacMan per fornire la riga della scritta "READY!"
+        int col = PacMan.COLUMN_COUNT / 2;
+        int x = col * PacMan.TILE_SIZE;
+        int y = readyRow * PacMan.TILE_SIZE;
+
+        FruitType type = FruitType.values()[random.nextInt(FruitType.values().length)];
+        fruits.add(new Fruit(x, y, type));
+
+        fruitsSpawnedThisLevel++;
+    }
+
+    private void waitForFruitToBeEatenOrExpire() throws InterruptedException {
+        final Fruit activeFruit = fruits.isEmpty() ? null : fruits.get(fruits.size() - 1);
+        if (activeFruit == null) return;
+
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < FRUIT_VISIBLE_TIME_MS) {
+            if (!fruits.contains(activeFruit)) {
+                // Frutto mangiato
+                return;
+            }
+            Thread.sleep(200);
         }
+
+        // Frutto non mangiato in tempo
+        fruits.remove(activeFruit);
     }
 
     public int collectFruit(Block pacman) {
@@ -73,46 +111,41 @@ public class FruitManager {
         return 0;
     }
 
+    public void draw(GraphicsContext gc) {
+        for (Fruit fruit : fruits) {
+            Image fruitImage = switch (fruit.getType()) {
+                case CHERRY -> imageLoader.getCherryImage();
+                case APPLE -> imageLoader.getAppleImage();
+                case STRAWBERRY -> imageLoader.getStrawberryImage();
+            };
+            gc.drawImage(fruitImage, fruit.getX(), fruit.getY(), PacMan.TILE_SIZE, PacMan.TILE_SIZE);
+        }
+    }
+
     public void reset() {
         fruits.clear();
-    }
-}
-
-class Fruit {
-    private final int x, y;
-    private final FruitType type;
-
-    public Fruit(int x, int y, FruitType type) {
-        this.x = x;
-        this.y = y;
-        this.type = type;
+        pauseFruitTimer();
     }
 
-    public int getX() {
-        return x;
+    // Le classi interne rimangono invariate
+    private static class Fruit {
+        private final int x, y;
+        private final FruitType type;
+
+        Fruit(int x, int y, FruitType type) {
+            this.x = x;
+            this.y = y;
+            this.type = type;
+        }
+        int getX() { return x; }
+        int getY() { return y; }
+        FruitType getType() { return type; }
     }
 
-    public int getY() {
-        return y;
-    }
-
-    public FruitType getType() {
-        return type;
-    }
-}
-
-enum FruitType {
-    CHERRY(100),
-    APPLE(200),
-    STRAWBERRY(300);
-
-    private final int score;
-
-    FruitType(int score) {
-        this.score = score;
-    }
-
-    public int getScore() {
-        return score;
+    public enum FruitType {
+        CHERRY(200), APPLE(400), STRAWBERRY(800);
+        private final int score;
+        FruitType(int score) { this.score = score; }
+        public int getScore() { return score; }
     }
 }

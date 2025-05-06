@@ -4,6 +4,9 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 
 import java.util.HashSet;
 import java.util.List;
@@ -18,13 +21,13 @@ public class GameMap {
         "X                 X",
         "X XX X XXXXX X XX X",
         "X    X       X    X",
-        "XXXX XXXX XXXX XXXX",
-        "nnnX X   r   X Xnnn",
-        "XXXX X XX-XX X XXXX",
-        "T      XbpoX      T",
-        "XXXX X XXXXX X XXXX",
-        "nnnX X       X Xnnn",
-        "XXXX X XXXXX X XXXX",
+        "XXXX XXXXnXXXX XXXX",
+        "nnnX XnnnrnnnX Xnnn",
+        "XXXX XnXX-XXnX XXXX",
+        "T    nnXbpoXnn    T",
+        "XXXX XnXXXXXnX XXXX",
+        "nnnX XnREADY!X Xnnn",
+        "XXXX XnXXXXXnX XXXX",
         "X        X        X",
         "X XX XXX X XXX XX X",
         "X  X     P     X  X",
@@ -44,6 +47,8 @@ public class GameMap {
     private       Block          pacman;
     private final List<Image>    collectedFruits = new ArrayList<>();
     private final ImageLoader    loader;
+    private boolean firstLoad = true;
+
 
     public GameMap(ImageLoader loader) {
         this.loader = loader;
@@ -104,21 +109,50 @@ public class GameMap {
         }
     }
 
+    public void setFirstLoad(boolean value) {
+        this.firstLoad = value;
+    }
+
     public void draw(GraphicsContext gc) {
-        // Muri
+        // --- disegno muri, cibi e power-food ---
         for (Block wall : walls) {
             if (wall.image != null) {
                 gc.drawImage(wall.image, wall.x, wall.y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
             }
         }
-        // Cibi normali
         gc.setFill(Color.WHITE);
         for (Block food : foods) {
             gc.fillRect(food.x, food.y, food.width, food.height);
         }
-        // Power foods
         for (Block pf : powerFoods) {
             gc.drawImage(pf.image, pf.x, pf.y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
+        }
+    
+        // --- se primo caricamento, disegno "READY!" centrato orizzontalmente ---
+        if (firstLoad) {
+            String msg = "READY!";
+            // font in grassetto, grande quanto un tile
+            Font f = Font.font("PressStart2P", FontWeight.BOLD, PacMan.TILE_SIZE);
+            gc.setFont(f);
+            gc.setFill(Color.YELLOW);
+    
+            // misuro la larghezza del testo
+            Text measure = new Text(msg);
+            measure.setFont(f);
+            double textWidth = measure.getLayoutBounds().getWidth();
+    
+            // trovo la riga di tileMap dove c'è "READY!"
+            for (int r = 0; r < tileMap.length; r++) {
+                int c = tileMap[r].indexOf(msg);
+                if (c >= 0) {
+                    // calcolo X tale che il testo sia centrato sull'intera board
+                    double x = (PacMan.BOARD_WIDTH - textWidth) / 2;
+                    // Y uguale a inizio riga + TILE_SIZE (così è nella stessa riga della tua stringa)
+                    double y = r * PacMan.TILE_SIZE + PacMan.TILE_SIZE;
+                    gc.fillText(msg, x, y);
+                    break;
+                }
+            }
         }
     }
 

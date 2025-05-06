@@ -16,6 +16,7 @@ public class PacMan extends Pane {
     public static final int COLUMN_COUNT = 19;
     public static final int BOARD_WIDTH  = COLUMN_COUNT * TILE_SIZE;
     public static final int BOARD_HEIGHT = ROW_COUNT * TILE_SIZE;
+    private boolean started = false;
 
     private final GraphicsContext gc;
     private AnimationTimer       gameLoop;
@@ -74,14 +75,37 @@ public class PacMan extends Pane {
         setOnMouseClicked(e -> requestFocus());
         setOnKeyPressed(e -> handleKeyPress(e.getCode()));
 
-        fruitManager.startFruitTimer();
-        startGameLoop();
+        // 1) Mostra subito mappa + “READY!”
+        draw();  
+        // 2) Attendi il primo click (o tasto) per far partire tutto
+        setOnMouseClicked(e -> startAfterReady());
+        setOnKeyPressed(e -> {
+            if (!started) startAfterReady();
+            else handleKeyPress(e.getCode());
+        });
     }
 
+    private void startAfterReady() {
+        if (started) return;
+        started = true;
+        gameMap.setFirstLoad(false);
+    
+        // 1) Avvio il timer della frutta solo quando l'utente dà il primo comando
+        fruitManager.startFruitTimer();
+    
+        // 2) Ripristino i listener “reali”
+        setOnMouseClicked(e -> requestFocus());
+        setOnKeyPressed(e -> handleKeyPress(e.getCode()));
+    
+        // 3) Avvio il loop di gioco
+        startGameLoop();
+    }
+    
 
     private void startGameLoop() {
         gameLoop = new AnimationTimer() {
-            @Override public void handle(long now) {
+            @Override
+            public void handle(long now) {
                 if (!gameOver && !flashing) {
                     if (storedDirection != null && isAligned(pacman) && gameMap.canMove(pacman, storedDirection)) {
                         currentDirection = storedDirection;
@@ -91,12 +115,18 @@ public class PacMan extends Pane {
                     movePacman();
                     ghostManager.moveGhosts();
                     draw();
-                    if (gameMap.getFoods().isEmpty() && gameMap.getPowerFoodCount() == 0) nextLevel();
+                    if (gameMap.getFoods().isEmpty() && gameMap.getPowerFoodCount() == 0) {
+                        nextLevel();
+                    }
                 }
             }
         };
         gameLoop.start();
     }
+
+    public int getReadyRow() {
+        return 11; // il numero corretto della riga dove mostri "READY!" -1
+    }    
 
     private boolean isAligned(Block b) {
         return (b.x % TILE_SIZE == 0) && (b.y % TILE_SIZE == 0);
@@ -199,6 +229,7 @@ public class PacMan extends Pane {
         if (waitingForLifeKey) {
             // riprendi il gioco quando perdi una vita
             waitingForLifeKey = false;
+            fruitManager.startFruitTimer();
             // resetta posizione e loop
             gameMap.resetEntities();
             pacman = gameMap.getPacman();
@@ -229,6 +260,7 @@ public class PacMan extends Pane {
 
     private void loseLife() {
         lives--;
+        fruitManager.pauseFruitTimer();
         gameLoop.stop();  // blocca sempre
         if (lives <= 0) {
             gameOver = true;
