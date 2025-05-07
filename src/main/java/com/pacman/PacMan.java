@@ -115,14 +115,20 @@ public class PacMan extends Pane {
             @Override
             public void handle(long now) {
                 if (!gameOver && !flashing) {
+                    // 1) Gestione input e movimento Pac-Man
                     if (storedDirection != null && isAligned(pacman) && gameMap.canMove(pacman, storedDirection)) {
                         currentDirection = storedDirection;
                         applyImage(currentDirection);
                         storedDirection = null;
                     }
                     movePacman();
+                    // 2) Movimento fantasmi
                     ghostManager.moveGhosts();
+                    // 3) Collisione **sempre** controllata  
+                    score += ghostManager.handleGhostCollisions(pacman, PacMan.this::loseLife);
+                    // 4) Disegno
                     draw();
+                    // 5) Passaggio livello
                     if (gameMap.getFoods().isEmpty() && gameMap.getPowerFoodCount() == 0) {
                         nextLevel();
                     }
@@ -131,6 +137,7 @@ public class PacMan extends Pane {
         };
         gameLoop.start();
     }
+
 
     public int getReadyRow() {
         return 11; // il numero corretto della riga dove mostri "READY!" -1
@@ -181,7 +188,6 @@ public class PacMan extends Pane {
                 score += 50;
                 ghostManager.activateScaredMode();
             }
-            score += ghostManager.handleGhostCollisions(pacman, this::loseLife);
             score += fruitManager.collectFruit(pacman);
         }
     }
@@ -274,8 +280,6 @@ public class PacMan extends Pane {
         // gioco normale: registriamo la direzione
         storedDirection = key;
     }
-    
-    
 
     private boolean collision(Block a, Block c) {
         return a.x < c.x + c.width &&
