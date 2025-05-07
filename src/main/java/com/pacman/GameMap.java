@@ -24,7 +24,7 @@ public class GameMap {
         "XXXX XXXXnXXXX XXXX",
         "nnnX XnnnrnnnX Xnnn",
         "XXXX XnXX-XXnX XXXX",
-        "T    nnXbpoXnn    T",
+        "Tnnn nnXbpoXnn nnnT",
         "XXXX XnXXXXXnX XXXX",
         "nnnX XnREADY!X Xnnn",
         "XXXX XnXXXXXnX XXXX",

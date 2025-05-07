@@ -77,30 +77,38 @@ public class PacMan extends Pane {
 
         // 1) Mostra subito mappa + “READY!”
         draw();  
-        // 2) Attendi il primo click (o tasto) per far partire tutto
-        setOnMouseClicked(e -> startAfterReady());
+
+        // 2) Al primo tasto, lancio startAfterReady con la direzione scelta
         setOnKeyPressed(e -> {
-            if (!started) startAfterReady();
-            else handleKeyPress(e.getCode());
+            if (!started) {
+                startAfterReady(e.getCode());
+            } else {
+                handleKeyPress(e.getCode());
+            }
         });
+        // (opzionale) mantieni il click per dare il focus, ma non per avviare il gioco
+        setOnMouseClicked(e -> requestFocus());
     }
 
-    private void startAfterReady() {
+    private void startAfterReady(KeyCode initialDir) {
         if (started) return;
         started = true;
         gameMap.setFirstLoad(false);
     
-        // 1) Avvio il timer della frutta solo quando l'utente dà il primo comando
+        // 1) Primo input divent i direzione iniziale
+        currentDirection = initialDir;
+        applyImage(currentDirection);
+    
+        // 2) Avvio timer frutta
         fruitManager.startFruitTimer();
     
-        // 2) Ripristino i listener “reali”
+        // 3) Ripristino listener “reali”
         setOnMouseClicked(e -> requestFocus());
         setOnKeyPressed(e -> handleKeyPress(e.getCode()));
     
-        // 3) Avvio il loop di gioco
+        // 4) Avvio loop
         startGameLoop();
     }
-    
 
     private void startGameLoop() {
         gameLoop = new AnimationTimer() {
@@ -227,18 +235,34 @@ public class PacMan extends Pane {
             return;
         }
         if (waitingForLifeKey) {
-            // riprendi il gioco quando perdi una vita
             waitingForLifeKey = false;
-            fruitManager.startFruitTimer();
-            // resetta posizione e loop
+            // 1) reset mappa e frutta
             gameMap.resetEntities();
             pacman = gameMap.getPacman();
             ghostManager.resetGhosts(gameMap.getGhosts(), gameMap.getGhostPortal(), gameMap.getPowerFoods());
-            currentDirection = null;
-            storedDirection  = null;
+            fruitManager.startFruitTimer();
+        
+            // 2) prendo proprio questo tasto come direzione iniziale
+            currentDirection = key;
+            applyImage(currentDirection);
+        
+            // 3) riavvio loop
             gameLoop.start();
             return;
         }
+        
+        if (waitingForRestart) {
+            waitingForRestart = false;
+            gameMap.resetEntities();
+            pacman = gameMap.getPacman();
+            ghostManager.resetGhosts(gameMap.getGhosts(), gameMap.getGhostPortal(), gameMap.getPowerFoods());
+            fruitManager.reset();
+            fruitManager.startFruitTimer();
+            currentDirection = null;
+            storedDirection  = null;
+            startGameLoop();
+            return;
+        }        
         // gioco normale: registriamo la direzione
         storedDirection = key;
     }
@@ -280,7 +304,6 @@ public class PacMan extends Pane {
         double w = getTextWidth(msg, returnKeyFont);
         gc.fillText(msg, (BOARD_WIDTH - w) / 2, (BOARD_HEIGHT + TILE_SIZE) / 2);
     }
-    
 
     private void drawGameOver() {
         draw();  // ridisegna il campo sottostante
@@ -299,20 +322,6 @@ public class PacMan extends Pane {
         double pw = getTextWidth(prompt, returnKeyFont);
         gc.fillText(prompt, (BOARD_WIDTH - pw) / 2, (BOARD_HEIGHT + TILE_SIZE) / 2 + 40);
     }
-    
-    
-    private void resetGame() {
-        gameOver = false;
-        score    = 0;
-        lives    = 3;
-        level    = 1;
-        currentDirection = null;
-        storedDirection  = null;
-        gameMap.reload();
-        pacman = gameMap.resetPacman();
-        ghostManager.resetGhosts(gameMap.getGhosts(), gameMap.getGhostPortal(), gameMap.getPowerFoods());
-        fruitManager.reset();
-    }
 
     private void nextLevel() {
         level++;
@@ -328,4 +337,9 @@ public class PacMan extends Pane {
             draw();
         });
     }
+
+    public int getCurrentLevel() {
+        return level;
+    }
+    
 }

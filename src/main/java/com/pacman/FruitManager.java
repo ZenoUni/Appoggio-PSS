@@ -71,17 +71,26 @@ public class FruitManager {
 
     private void spawnFruitAtFixedPoint() {
         if (fruitsSpawnedThisLevel >= MAX_FRUITS_PER_LEVEL) return;
-
-        int readyRow = game.getReadyRow(); // ← Metodo che devi implementare in PacMan per fornire la riga della scritta "READY!"
+        int readyRow = game.getReadyRow(); // ← Implementato in PacMan
         int col = PacMan.COLUMN_COUNT / 2;
         int x = col * PacMan.TILE_SIZE;
         int y = readyRow * PacMan.TILE_SIZE;
-
-        FruitType type = FruitType.values()[random.nextInt(FruitType.values().length)];
+        FruitType type;
+        int level = game.getCurrentLevel(); // ← Implementa questo in PacMan
+        if (level == 1) {
+            type = FruitType.CHERRY;
+        } else if (level == 2) {
+            type = FruitType.APPLE;
+        } else if (level == 3) {
+            type = FruitType.STRAWBERRY;
+        } else {
+            // Se superato il livello 3, smetti di generare frutta
+            return;
+        }
         fruits.add(new Fruit(x, y, type));
-
         fruitsSpawnedThisLevel++;
     }
+    
 
     private void waitForFruitToBeEatenOrExpire() throws InterruptedException {
         final Fruit activeFruit = fruits.isEmpty() ? null : fruits.get(fruits.size() - 1);
