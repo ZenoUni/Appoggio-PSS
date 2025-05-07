@@ -1,40 +1,56 @@
+// File: Block.java
 package com.pacman;
 
 import javafx.scene.image.Image;
 
 public class Block {
-    public int x, y, width, height, velocityX = 0, velocityY = 0;
+    public int x, y, width, height;
     public Image image;
     public final Image originalImage;
 
-    // Direzione dei fantasmi
+    /** Per i fantasmi: che tipo sono */
+    public final GhostType ghostType;
+
+    /** Direzione corrente del blocco (usata per i fantasmi) */
     public Direction direction;
 
-    // Stato di uscita dal portale
+    /** Se il fantasma è appena uscito dal portale */
     public boolean isExiting = false;
+    /** Se il fantasma è in modalità spaventata */
+    public boolean isScared  = false;
 
-    // NUOVO: stato "spaventato" individuale
-    public boolean isScared = false;
+    // Velocità (puoi usarle o meno, a seconda dell’implementazione)
+    public int velocityX = 0, velocityY = 0;
 
+    /** Costruttore principale per elementi statici o Pac-Man */
     public Block(Image image, int x, int y) {
-        this(image, x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
+        this(image, x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE, null);
     }
 
-    public Block(Image image, int x, int y, int width, int height) {
-        this.image = image;
+    /** Costruttore esteso che accetta anche un GhostType (null se non è un fantasma) */
+    public Block(Image image, int x, int y, int width, int height, GhostType ghostType) {
+        this.image         = image;
         this.originalImage = image;
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-        this.direction = Direction.randomDirection();
-        // Assicuriamoci che un nuovo blocco non sia mai scared all'inizio
-        this.isScared = false;
+        this.x             = x;
+        this.y             = y;
+        this.width         = width;
+        this.height        = height;
+        this.ghostType     = ghostType;
+
+        // Direzione iniziale: random per i fantasmi, altrimenti null
+        this.direction = (ghostType != null) ? Direction.randomDirection() : null;
+        this.isScared  = false;
     }
 
-    public void updateDirection(char direction, Image image) {
-        this.image = image;
-        this.velocityX = (direction == 'L' ? -4 : direction == 'R' ? 4 : 0);
-        this.velocityY = (direction == 'U' ? -4 : direction == 'D' ? 4 : 0);
+    /** Utility per cambiare immagine e velocità (non usato per i fantasmi) */
+    public void updateDirection(char dir, Image img) {
+        this.image = img;
+        this.velocityX = (dir == 'L' ? -4 : dir == 'R' ? 4 : 0);
+        this.velocityY = (dir == 'U' ? -4 : dir == 'D' ? 4 : 0);
+    }
+
+    /** I tipi di fantasmi disponibili */
+    public enum GhostType {
+        RED, BLUE, ORANGE, PINK
     }
 }

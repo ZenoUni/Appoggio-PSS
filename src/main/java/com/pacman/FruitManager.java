@@ -5,90 +5,112 @@ import javafx.scene.image.Image;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 public class FruitManager {
     private final PacMan game;
     private final ImageLoader imageLoader;
-    private final List<Fruit> fruits;
-    private final Random random;
+    private final List<Fruit> fruits = new ArrayList<>();
 
-    private Thread fruitThread;
+    private Thread worker;
     private volatile boolean running = false;
 
-    private int fruitsSpawnedThisLevel = 0;
+    // fasi: 0 = wait primo spawn, 1 = wait disappear primo, 2 = wait secondo spawn, 3 = finito
+    private int phase = 0;
 
-    private static final int MAX_FRUITS_PER_LEVEL      = 2;
-    private static final int FRUIT_VISIBLE_TIME_MS     = 8000;
-    private static final int FIRST_FRUIT_DELAY_MS      = 20000;
-    private static final int SECOND_FRUIT_DELAY_MS     = 20000;
+    private long remainingDelay;    // ms rimanenti per la fase corrente
+    private long lastPhaseStart;    // System.currentTimeMillis() all’inizio fase
 
-    public FruitManager(PacMan game, ImageLoader imageLoader) {
+    private static final int MAX_FRUITS_PER_LEVEL  = 2;
+    private static final int FRUIT_VISIBLE_MS      = 8000;
+    private static final int FIRST_DELAY_MS        = 20000;
+    private static final int SECOND_DELAY_MS       = 20000;
+
+    public FruitManager(PacMan game, ImageLoader loader) {
         this.game = game;
-        this.imageLoader = imageLoader;
-        this.fruits = new ArrayList<>();
-        this.random = new Random();
+        this.imageLoader = loader;
+        resetTimers();
     }
 
-    public void startFruitTimer() {
+    private void resetTimers() {
+        phase = 0;
+        remainingDelay = FIRST_DELAY_MS;
+        lastPhaseStart = 0;
+    }
+
+    public synchronized void startFruitTimer() {
         if (running) return;
         running = true;
-        fruitsSpawnedThisLevel = 0;
-
-        fruitThread = new Thread(() -> {
-            try {
-                // Primo frutto
-                Thread.sleep(FIRST_FRUIT_DELAY_MS);
-                if (!running) return;
-                spawnFruitAtFixedPoint();
-                waitForFruitToBeEatenOrExpire();
-
-                // Secondo frutto
-                Thread.sleep(SECOND_FRUIT_DELAY_MS);
-                if (!running) return;
-                spawnFruitAtFixedPoint();
-                waitForFruitToBeEatenOrExpire();
-            } catch (InterruptedException ignored) { }
-        });
-        fruitThread.setDaemon(true);
-        fruitThread.start();
+        lastPhaseStart = System.currentTimeMillis();
+        worker = new Thread(this::runLoop);
+        worker.setDaemon(true);
+        worker.start();
     }
 
-    public void pauseFruitTimer() {
+    public synchronized void pauseFruitTimer() {
+        if (!running) return;
         running = false;
-        if (fruitThread != null) fruitThread.interrupt();
+        long elapsed = System.currentTimeMillis() - lastPhaseStart;
+        remainingDelay = Math.max(0, remainingDelay - elapsed);
+        worker.interrupt();
     }
 
-    private void spawnFruitAtFixedPoint() {
-        if (fruitsSpawnedThisLevel >= MAX_FRUITS_PER_LEVEL) return;
-
-        int readyRow = game.getReadyRow();
-        int col      = PacMan.COLUMN_COUNT / 2;
-        int x        = col * PacMan.TILE_SIZE;
-        int y        = readyRow * PacMan.TILE_SIZE;
-
-        // Ciclo cherry→apple→strawberry
-        int level = game.getCurrentLevel();
-        FruitType type;
-        switch ((level - 1) % 3) {
-            case 0 -> type = FruitType.CHERRY;
-            case 1 -> type = FruitType.APPLE;
-            default -> type = FruitType.STRAWBERRY;
+    private void runLoop() {
+        while (running && phase < 3) {
+            if (phase == 0 || phase == 2) {
+                try {
+                    sleepWithPause(remainingDelay);
+                } catch (InterruptedException e) {
+                    continue; // sveglia o pausa
+                }
+                if (!running) break;
+                spawnFruit();
+                phase = (phase == 0) ? 1 : 3;
+                lastPhaseStart = System.currentTimeMillis();
+                remainingDelay = FRUIT_VISIBLE_MS;
+            } else if (phase == 1) {
+                long start = System.currentTimeMillis();
+                while (running && !fruits.isEmpty() &&
+                       System.currentTimeMillis() - start < FRUIT_VISIBLE_MS) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        break; // interrupt da collectFruit
+                    }
+                }
+                if (!running) break;
+                removeLastFruit();
+                phase = 2;
+                lastPhaseStart = System.currentTimeMillis();
+                remainingDelay = SECOND_DELAY_MS;
+            }
         }
+        if (phase == 3 && running) {
+            long start = System.currentTimeMillis();
+            while (running && !fruits.isEmpty() &&
+                   System.currentTimeMillis() - start < FRUIT_VISIBLE_MS) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException ignored) {}
+            }
+            removeLastFruit();
+        }
+    }
+    
 
+    private void spawnFruit() {
+        if (fruits.size() >= MAX_FRUITS_PER_LEVEL) return;
+        int col = PacMan.COLUMN_COUNT / 2;
+        int x = col * PacMan.TILE_SIZE;
+        int y = game.getReadyRow() * PacMan.TILE_SIZE;
+        int lvl = game.getCurrentLevel();
+        FruitType type = FruitType.values()[(lvl - 1) % FruitType.values().length];
         fruits.add(new Fruit(x, y, type));
-        fruitsSpawnedThisLevel++;
     }
 
-    private void waitForFruitToBeEatenOrExpire() throws InterruptedException {
-        if (fruits.isEmpty()) return;
-        Fruit active = fruits.get(fruits.size() - 1);
-        long start    = System.currentTimeMillis();
-        while (System.currentTimeMillis() - start < FRUIT_VISIBLE_TIME_MS) {
-            if (!fruits.contains(active)) return;  // mangiato
-            Thread.sleep(200);
+    private void removeLastFruit() {
+        if (!fruits.isEmpty()) {
+            fruits.remove(fruits.size() - 1);
         }
-        fruits.remove(active);  // scaduto
     }
 
     public int collectFruit(Block pacman) {
@@ -96,34 +118,49 @@ public class FruitManager {
             Fruit f = fruits.get(i);
             if (f.getX() == pacman.x && f.getY() == pacman.y) {
                 fruits.remove(i);
+                // se siamo in fase1 (frutto mangiato entro 8s) salta subito a fase2
+                if (phase == 1) {
+                    phase = 2;
+                    remainingDelay = SECOND_DELAY_MS;
+                    lastPhaseStart = System.currentTimeMillis();
+                    if (worker != null) {
+                        worker.interrupt();
+                    }
+                }                
                 return f.getType().getScore();
             }
         }
         return 0;
     }
+    
 
     public void draw(GraphicsContext gc) {
-        for (Fruit fruit : fruits) {
-            Image img = switch (fruit.getType()) {
+        for (Fruit f : fruits) {
+            Image img = switch (f.getType()) {
                 case CHERRY     -> imageLoader.getCherryImage();
                 case APPLE      -> imageLoader.getAppleImage();
-                case STRAWBERRY -> imageLoader.getStrawberryImage();
+                default         -> imageLoader.getStrawberryImage();
             };
-            gc.drawImage(img, fruit.getX(), fruit.getY(), PacMan.TILE_SIZE, PacMan.TILE_SIZE);
+            gc.drawImage(img, f.getX(), f.getY(), PacMan.TILE_SIZE, PacMan.TILE_SIZE);
         }
     }
 
-    public void reset() {
+    public synchronized void reset() {
         fruits.clear();
-        pauseFruitTimer();
+        if (running) {
+            worker.interrupt();
+            running = false;
+        }
+        resetTimers();
     }
 
     private static class Fruit {
         private final int x, y;
         private final FruitType type;
-
-        Fruit(int x, int y, FruitType type) {
-            this.x = x; this.y = y; this.type = type;
+        Fruit(int x, int y, FruitType t) {
+            this.x = x;
+            this.y = y;
+            this.type = t;
         }
         int getX() { return x; }
         int getY() { return y; }
@@ -133,7 +170,20 @@ public class FruitManager {
     public enum FruitType {
         CHERRY(200), APPLE(400), STRAWBERRY(800);
         private final int score;
-        FruitType(int score) { this.score = score; }
+        FruitType(int s) { score = s; }
         public int getScore() { return score; }
+    }
+
+    /**
+     * Dorme per 'duration' ms, ma rispetta pauseFruitTimer():
+     * se running diventa false interrompe il ciclo.
+     */
+    private void sleepWithPause(long duration) throws InterruptedException {
+        long target = System.currentTimeMillis() + duration;
+        while (running) {
+            long remain = target - System.currentTimeMillis();
+            if (remain <= 0) return;
+            Thread.sleep(Math.min(remain, 200));
+        }
     }
 }

@@ -63,7 +63,13 @@ public class PacMan extends Pane {
         imageLoader  = new ImageLoader();
         gameMap      = new GameMap(imageLoader);
         fruitManager = new FruitManager(this, imageLoader);
-        ghostManager = new GhostManager(gameMap.getGhosts(), gameMap.getGhostPortal(), gameMap.getPowerFoods(), gameMap);
+        ghostManager = new GhostManager(
+            gameMap.getGhosts(),
+            gameMap.getGhostPortal(),
+            gameMap.getPowerFoods(),
+            gameMap,
+            this
+        );
 
         gameMap.resetEntities();
         ghostManager.resetGhosts(gameMap.getGhosts(), gameMap.getGhostPortal(), gameMap.getPowerFoods());
@@ -101,6 +107,7 @@ public class PacMan extends Pane {
     
         // 2) Avvio timer frutta
         fruitManager.startFruitTimer();
+        ghostManager.startCageTimers();
     
         // 3) Ripristino listener “reali”
         setOnMouseClicked(e -> requestFocus());
@@ -192,6 +199,32 @@ public class PacMan extends Pane {
         }
     }
 
+    /** Converte una freccia da tastiera in Direction */
+    private Direction keyToDir(KeyCode k) {
+        return switch (k) {
+            case UP    -> Direction.UP;
+            case DOWN  -> Direction.DOWN;
+            case LEFT  -> Direction.LEFT;
+            case RIGHT -> Direction.RIGHT;
+            default    -> null;
+        };
+    }
+
+
+    /** Rende visibile a GhostManager la posizione di Pac-Man */
+    public Block getPacmanBlock() {
+        return pacman;
+    }
+
+    /** Rende visibile a GhostManager la direzione corrente di Pac-Man */
+    public Direction getPacmanDirection() {
+        if (currentDirection != null) {
+            Direction d = keyToDir(currentDirection);
+            if (d != null) return d;
+        }
+        return Direction.randomDirection();
+    }
+
     private void draw() {
         gc.setFill(Color.BLACK);
         gc.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT + TILE_SIZE);
@@ -234,52 +267,70 @@ public class PacMan extends Pane {
         }
     }
 
-    private void handleKeyPress(KeyCode key) {
-        if (gameOver) {
-            // torniamo al menu al primo tasto
-            mainMenu.returnToMenu();
-            return;
-        }
-        if (waitingForLifeKey) {
-            waitingForLifeKey = false;
-            // 1) reset mappa e frutta
-            gameMap.resetEntities();
-            pacman = gameMap.getPacman();
-            ghostManager.resetGhosts(gameMap.getGhosts(), gameMap.getGhostPortal(), gameMap.getPowerFoods());
-            fruitManager.startFruitTimer();
-        
-            // 2) prendo proprio questo tasto come direzione iniziale
-            currentDirection = key;
-            applyImage(currentDirection);
-        
-            // 3) riavvio loop
-            gameLoop.start();
-            return;
-        }
-        
-        if (waitingForRestart) {
-            waitingForRestart = false;
-            // 1) Reset logico del livello successivo
-            gameMap.reload();                // ricarica cibo e power‐food
-            gameMap.resetEntities();         // riposiziona Pac‐Man e fantasmi
-            pacman = gameMap.getPacman();
-            ghostManager.resetGhosts(
-                gameMap.getGhosts(),
-                gameMap.getGhostPortal(),
-                gameMap.getPowerFoods()
-            );
-            fruitManager.reset();
-            fruitManager.startFruitTimer();
-            // 2) Usa questo primo tasto come direzione iniziale di Pac‐Man
-            currentDirection = key;
-            applyImage(currentDirection);
-            // 3) Avvia subito il loop di gioco
-            startGameLoop();
-            return;
-        }
-        // gioco normale: registriamo la direzione
-        storedDirection = key;
+    // all’interno di handleKeyPress(...)
+private void handleKeyPress(KeyCode key) {
+    if (gameOver) {
+        mainMenu.returnToMenu();
+        return;
     }
+    if (waitingForLifeKey) {
+        waitingForLifeKey = false;
+
+        // 1) reset mappa e frutta
+        gameMap.resetEntities();
+        pacman = gameMap.getPacman();
+
+        // 2) ripristina i fantasmi (tutti immobili) e poi avvia il timer
+        ghostManager.resetGhosts(
+            gameMap.getGhosts(),
+            gameMap.getGhostPortal(),
+            gameMap.getPowerFoods()
+        );
+        ghostManager.startCageTimers();
+
+        fruitManager.startFruitTimer();
+
+        // 3) direzione iniziale
+        currentDirection = key;
+        applyImage(currentDirection);
+
+        // 4) riprendi loop
+        gameLoop.start();
+        return;
+    }
+
+    if (waitingForRestart) {
+        waitingForRestart = false;
+
+        // 1) reset livello
+        gameMap.reload();
+        gameMap.resetEntities();
+        pacman = gameMap.getPacman();
+
+        // 2) reset fantasmi immobilizzati, poi avvia il timer
+        ghostManager.resetGhosts(
+            gameMap.getGhosts(),
+            gameMap.getGhostPortal(),
+            gameMap.getPowerFoods()
+        );
+        ghostManager.startCageTimers();
+
+        fruitManager.reset();
+        fruitManager.startFruitTimer();
+
+        // 3) direzione iniziale
+        currentDirection = key;
+        applyImage(currentDirection);
+
+        // 4) riavvia loop
+        startGameLoop();
+        return;
+    }
+
+    // gioco normale
+    storedDirection = key;
+}
+
 
     private boolean collision(Block a, Block c) {
         return a.x < c.x + c.width &&
@@ -341,6 +392,14 @@ public class PacMan extends Pane {
         gameMap.flashWalls(() -> {
             gameMap.reload();
             pacman = gameMap.resetPacman();
+    
+            // 🔧 RESET FANTASMI PRIMA DEL BLOCCO
+            ghostManager.resetGhosts(
+                gameMap.getGhosts(),
+                gameMap.getGhostPortal(),
+                gameMap.getPowerFoods()
+            );
+    
             currentDirection = null;
             storedDirection  = null;
             flashing = false;
@@ -349,6 +408,7 @@ public class PacMan extends Pane {
             draw();
         });
     }
+    
 
     public int getCurrentLevel() {
         return level;

@@ -43,12 +43,11 @@ public class GameMap {
     private final HashSet<Block> ghosts     = new HashSet<>();
     private final HashSet<Block> powerFoods = new HashSet<>();
     private final List<Block>    tunnels    = new ArrayList<>();
-    private       Block          ghostPortal;
-    private       Block          pacman;
+    private Block                ghostPortal;
+    private Block                pacman;
     private final List<Image>    collectedFruits = new ArrayList<>();
     private final ImageLoader    loader;
     private boolean firstLoad = true;
-
 
     public GameMap(ImageLoader loader) {
         this.loader = loader;
@@ -63,33 +62,76 @@ public class GameMap {
         tunnels.clear();
         collectedFruits.clear();
         ghostPortal = null;
-
+    
         for (int r = 0; r < tileMap.length; r++) {
             for (int c = 0; c < tileMap[r].length(); c++) {
                 int x = c * PacMan.TILE_SIZE;
                 int y = r * PacMan.TILE_SIZE;
                 char tile = tileMap[r].charAt(c);
+    
                 switch (tile) {
-                    case 'X' -> walls.add(new Block(loader.getWallImage(), x, y));
-                    case ' ' -> foods.add(new Block(null,
+                    case 'X':
+                        walls.add(new Block(loader.getWallImage(), x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE, null));
+                        break;
+                    case ' ':
+                        foods.add(new Block(null,
                             x + PacMan.TILE_SIZE/2 - 2,
-                            y + PacMan.TILE_SIZE/2 - 2, 4, 4));
-                    case 'n' -> { }
-                    case 'P' -> pacman = new Block(loader.getPacmanRightImage(), x, y);
-                    case '-' -> ghostPortal = new Block(null, x, y, PacMan.TILE_SIZE, 4);
-                    case 'O' -> powerFoods.add(new Block(loader.getPowerFoodImage(), x, y));
-                    case 'b' -> ghosts.add(new Block(loader.getBlueGhostImage(), x, y));
-                    case 'o' -> ghosts.add(new Block(loader.getOrangeGhostImage(), x, y));
-                    case 'p' -> ghosts.add(new Block(loader.getPinkGhostImage(), x, y));
-                    case 'r' -> ghosts.add(new Block(loader.getRedGhostImage(), x, y));
-                    case 'T' -> tunnels.add(new Block(null, x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE));
-                    default  -> { }
+                            y + PacMan.TILE_SIZE/2 - 2,
+                            4, 4,
+                            null));
+                        break;
+                    case 'n':
+                        // nessun blocco
+                        break;
+                    case 'P':
+                        pacman = new Block(loader.getPacmanRightImage(), x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE, null);
+                        break;
+                    case '-':
+                        ghostPortal = new Block(null, x, y, PacMan.TILE_SIZE, 4, null);
+                        break;
+                    case 'O':
+                        powerFoods.add(new Block(
+                            loader.getPowerFoodImage(), x, y,
+                            PacMan.TILE_SIZE, PacMan.TILE_SIZE,
+                            null));
+                        break;
+                    case 'b':
+                        ghosts.add(new Block(
+                            loader.getBlueGhostImage(), x, y,
+                            PacMan.TILE_SIZE, PacMan.TILE_SIZE,
+                            Block.GhostType.BLUE));
+                        break;
+                    case 'o':
+                        ghosts.add(new Block(
+                            loader.getOrangeGhostImage(), x, y,
+                            PacMan.TILE_SIZE, PacMan.TILE_SIZE,
+                            Block.GhostType.ORANGE));
+                        break;
+                    case 'p':
+                        ghosts.add(new Block(
+                            loader.getPinkGhostImage(), x, y,
+                            PacMan.TILE_SIZE, PacMan.TILE_SIZE,
+                            Block.GhostType.PINK));
+                        break;
+                    case 'r':
+                        ghosts.add(new Block(
+                            loader.getRedGhostImage(), x, y,
+                            PacMan.TILE_SIZE, PacMan.TILE_SIZE,
+                            Block.GhostType.RED));
+                        break;
+                    case 'T':
+                        tunnels.add(new Block(null, x, y,
+                            PacMan.TILE_SIZE, PacMan.TILE_SIZE,
+                            null));
+                        break;
+                    default:
+                        // carattere non gestito
+                        break;
                 }
             }
         }
     }
-
-    /** Riposiziona solo Pac-Man e fantasmi. Lascia cibi e frutti così come sono. */
+    
     public void resetEntities() {
         ghosts.clear();
         for (int r = 0; r < tileMap.length; r++) {
@@ -97,57 +139,79 @@ public class GameMap {
                 int x = c * PacMan.TILE_SIZE;
                 int y = r * PacMan.TILE_SIZE;
                 char tile = tileMap[r].charAt(c);
+    
                 switch (tile) {
-                    case 'P' -> pacman = new Block(loader.getPacmanRightImage(), x, y);
-                    case 'b' -> ghosts.add(new Block(loader.getBlueGhostImage(), x, y));
-                    case 'o' -> ghosts.add(new Block(loader.getOrangeGhostImage(), x, y));
-                    case 'p' -> ghosts.add(new Block(loader.getPinkGhostImage(), x, y));
-                    case 'r' -> ghosts.add(new Block(loader.getRedGhostImage(), x, y));
-                    default  -> { }
+                    case 'P':
+                        pacman = new Block(loader.getPacmanRightImage(), x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE, null);
+                        break;
+                    case 'b':
+                        ghosts.add(new Block(
+                            loader.getBlueGhostImage(), x, y,
+                            PacMan.TILE_SIZE, PacMan.TILE_SIZE,
+                            Block.GhostType.BLUE));
+                        break;
+                    case 'o':
+                        ghosts.add(new Block(
+                            loader.getOrangeGhostImage(), x, y,
+                            PacMan.TILE_SIZE, PacMan.TILE_SIZE,
+                            Block.GhostType.ORANGE));
+                        break;
+                    case 'p':
+                        ghosts.add(new Block(
+                            loader.getPinkGhostImage(), x, y,
+                            PacMan.TILE_SIZE, PacMan.TILE_SIZE,
+                            Block.GhostType.PINK));
+                        break;
+                    case 'r':
+                        ghosts.add(new Block(
+                            loader.getRedGhostImage(), x, y,
+                            PacMan.TILE_SIZE, PacMan.TILE_SIZE,
+                            Block.GhostType.RED));
+                        break;
+                    default:
+                        // nessuna azione
+                        break;
                 }
             }
         }
     }
 
-    public void setFirstLoad(boolean value) {
-        this.firstLoad = value;
-    }
+    public void setFirstLoad(boolean v) { firstLoad = v; }
 
     public void draw(GraphicsContext gc) {
-        // --- disegno muri, cibi e power-food ---
-        for (Block wall : walls) {
-            if (wall.image != null) {
-                gc.drawImage(wall.image, wall.x, wall.y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
-            }
+        // muri
+        for (Block w : walls) {
+            if (w.image != null)
+                gc.drawImage(w.image, w.x, w.y,
+                             PacMan.TILE_SIZE, PacMan.TILE_SIZE);
         }
+        // cibo
         gc.setFill(Color.WHITE);
-        for (Block food : foods) {
-            gc.fillRect(food.x, food.y, food.width, food.height);
+        for (Block f : foods) {
+            gc.fillRect(f.x, f.y, f.width, f.height);
         }
+        // power-food
         for (Block pf : powerFoods) {
-            gc.drawImage(pf.image, pf.x, pf.y, PacMan.TILE_SIZE, PacMan.TILE_SIZE);
+            gc.drawImage(pf.image, pf.x, pf.y,
+                         PacMan.TILE_SIZE, PacMan.TILE_SIZE);
         }
-    
-        // --- se primo caricamento, disegno "READY!" centrato orizzontalmente ---
+
+        // READY! (primo caricamento)
         if (firstLoad) {
             String msg = "READY!";
-            // font in grassetto, grande quanto un tile
-            Font f = Font.font("PressStart2P", FontWeight.BOLD, PacMan.TILE_SIZE);
+            Font   f   = Font.font("PressStart2P",
+                           FontWeight.BOLD, PacMan.TILE_SIZE);
             gc.setFont(f);
             gc.setFill(Color.YELLOW);
-    
-            // misuro la larghezza del testo
+
             Text measure = new Text(msg);
             measure.setFont(f);
-            double textWidth = measure.getLayoutBounds().getWidth();
-    
-            // trovo la riga di tileMap dove c'è "READY!"
+            double textW = measure.getLayoutBounds().getWidth();
+
             for (int r = 0; r < tileMap.length; r++) {
                 int c = tileMap[r].indexOf(msg);
                 if (c >= 0) {
-                    // calcolo X tale che il testo sia centrato sull'intera board
-                    double x = (PacMan.BOARD_WIDTH - textWidth) / 2;
-                    // Y uguale a inizio riga + TILE_SIZE (così è nella stessa riga della tua stringa)
+                    double x = (PacMan.BOARD_WIDTH - textW) / 2;
                     double y = r * PacMan.TILE_SIZE + PacMan.TILE_SIZE;
                     gc.fillText(msg, x, y);
                     break;
@@ -156,15 +220,15 @@ public class GameMap {
         }
     }
 
-    public Block getPacman() { return pacman; }
-    public Block resetPacman() { loadMap(); return pacman; }
-    public HashSet<Block> getWalls() { return walls; }
-    public HashSet<Block> getFoods() { return foods; }
-    public List<Block> getGhosts() { return new ArrayList<>(ghosts); }
-    public Block getGhostPortal() { return ghostPortal; }
-    public List<Block> getPowerFoods() { return new ArrayList<>(powerFoods); }
-    public List<Image> getCollectedFruits() { return new ArrayList<>(collectedFruits); }
-    public List<Block> getTunnels() { return tunnels; }
+    public Block getPacman()    { return pacman; }
+    public Block resetPacman()  { loadMap(); return pacman; }
+    public HashSet<Block> getWalls()    { return walls; }
+    public HashSet<Block> getFoods()    { return foods; }
+    public List<Block>    getGhosts()   { return new ArrayList<>(ghosts); }
+    public Block          getGhostPortal() { return ghostPortal; }
+    public List<Block>    getPowerFoods(){ return new ArrayList<>(powerFoods); }
+    public List<Image>    getCollectedFruits(){return new ArrayList<>(collectedFruits);}
+    public List<Block>    getTunnels()  { return tunnels; }
 
     public void wrapAround(Block b) {
         for (Block t : tunnels) {
@@ -188,21 +252,21 @@ public class GameMap {
     }
 
     public boolean isCollisionWithWallOrPortal(Block b) {
-        for (Block wall : walls) if (collision(b, wall)) return true;
+        for (Block w : walls) if (collision(b, w)) return true;
         if (ghostPortal != null && collision(b, ghostPortal)) return true;
         return false;
     }
 
     public boolean canMove(Block b, KeyCode key) {
-        int newX = b.x, newY = b.y;
+        int nx = b.x, ny = b.y;
         switch (key) {
-            case UP    -> newY -= 4;
-            case DOWN  -> newY += 4;
-            case LEFT  -> newX -= 4;
-            case RIGHT -> newX += 4;
+            case UP    -> ny -= 4;
+            case DOWN  -> ny += 4;
+            case LEFT  -> nx -= 4;
+            case RIGHT -> nx += 4;
             default    -> { }
         }
-        Block test = new Block(null, newX, newY, b.width, b.height);
+        Block test = new Block(null, nx, ny);
         return !isCollisionWithWallOrPortal(test);
     }
 
@@ -210,21 +274,29 @@ public class GameMap {
         Iterator<Block> it = foods.iterator();
         while (it.hasNext()) {
             Block f = it.next();
-            if (collision(b, f)) { it.remove(); return 10; }
+            if (collision(b, f)) {
+                it.remove();
+                return 10;
+            }
         }
         return 0;
     }
-
     public boolean collectPowerFood(Block b) {
         Iterator<Block> it = powerFoods.iterator();
         while (it.hasNext()) {
             Block pf = it.next();
-            if (collision(b, pf)) { it.remove(); return true; }
+            if (collision(b, pf)) {
+                it.remove();
+                return true;
+            }
         }
         return false;
     }
 
     public int getPowerFoodCount() { return powerFoods.size(); }
-    public void flashWalls(Runnable onFinished) { walls.forEach(w -> w.image = null); onFinished.run(); }
+    public void flashWalls(Runnable onFinished) {
+        walls.forEach(w->w.image=null);
+        onFinished.run();
+    }
     public void reload() { loadMap(); }
 }
