@@ -253,16 +253,24 @@ public class PacMan extends Pane {
         
         if (waitingForRestart) {
             waitingForRestart = false;
-            gameMap.resetEntities();
+            // 1) Reset logico del livello successivo
+            gameMap.reload();                // ricarica cibo e power‐food
+            gameMap.resetEntities();         // riposiziona Pac‐Man e fantasmi
             pacman = gameMap.getPacman();
-            ghostManager.resetGhosts(gameMap.getGhosts(), gameMap.getGhostPortal(), gameMap.getPowerFoods());
+            ghostManager.resetGhosts(
+                gameMap.getGhosts(),
+                gameMap.getGhostPortal(),
+                gameMap.getPowerFoods()
+            );
             fruitManager.reset();
             fruitManager.startFruitTimer();
-            currentDirection = null;
-            storedDirection  = null;
+            // 2) Usa questo primo tasto come direzione iniziale di Pac‐Man
+            currentDirection = key;
+            applyImage(currentDirection);
+            // 3) Avvia subito il loop di gioco
             startGameLoop();
             return;
-        }        
+        }
         // gioco normale: registriamo la direzione
         storedDirection = key;
     }
