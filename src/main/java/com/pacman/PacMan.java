@@ -10,7 +10,7 @@ import javafx.scene.text.Font;
 
 public class PacMan extends Pane {
     public static final int TILE_SIZE    = 32;
-    public static final int ROW_COUNT    = 21;
+    public static final int ROW_COUNT    = 22;
     public static final int COLUMN_COUNT = 19;
     public static final int BOARD_WIDTH  = COLUMN_COUNT * TILE_SIZE;
     public static final int BOARD_HEIGHT = ROW_COUNT * TILE_SIZE;
@@ -193,7 +193,21 @@ public class PacMan extends Pane {
                 score += 50;
                 ghostManager.activateScaredMode();
             }
+            int prevScore = score;
             score += fruitManager.collectFruit(pacman);
+            if (score > prevScore) {
+                // Frutto mangiato: deduciamo il tipo dal punteggio guadagnato
+                int gained = score - prevScore;
+                FruitManager.FruitType type = switch (gained) {
+                    case 200 -> FruitManager.FruitType.CHERRY;
+                    case 400 -> FruitManager.FruitType.APPLE;
+                    case 800 -> FruitManager.FruitType.STRAWBERRY;
+                    default -> null;
+                };
+                if (type != null) {
+                    scoreManager.addCollectedFruit(type);
+                }
+            }
         }
     }
 
@@ -235,8 +249,7 @@ public class PacMan extends Pane {
         ghostManager.draw(gc);
         ghostManager.drawPortal(gc);
         gc.restore();
-
-        scoreManager.drawScoreboard(gc, lives, gameMap.getCollectedFruits(), score, level);
+        scoreManager.drawScoreboard(gc,lives,score,level);
 
         if (gameOver) {
             gc.setFill(Color.RED);

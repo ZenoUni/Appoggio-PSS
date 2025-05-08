@@ -116,23 +116,24 @@ public class FruitManager {
     public int collectFruit(Block pacman) {
         for (int i = 0; i < fruits.size(); i++) {
             Fruit f = fruits.get(i);
-            if (f.getX() == pacman.x && f.getY() == pacman.y) {
+            // collisione “rettangolare” invece che uguaglianza di coordinate
+            if (pacman.x < f.getX() + PacMan.TILE_SIZE &&
+                pacman.x + pacman.width > f.getX() &&
+                pacman.y < f.getY() + PacMan.TILE_SIZE &&
+                pacman.y + pacman.height > f.getY()) {
                 fruits.remove(i);
                 // se siamo in fase1 (frutto mangiato entro 8s) salta subito a fase2
                 if (phase == 1) {
                     phase = 2;
                     remainingDelay = SECOND_DELAY_MS;
                     lastPhaseStart = System.currentTimeMillis();
-                    if (worker != null) {
-                        worker.interrupt();
-                    }
-                }                
+                    if (worker != null) worker.interrupt();
+                }
                 return f.getType().getScore();
             }
         }
         return 0;
     }
-    
 
     public void draw(GraphicsContext gc) {
         for (Fruit f : fruits) {
@@ -174,10 +175,6 @@ public class FruitManager {
         public int getScore() { return score; }
     }
 
-    /**
-     * Dorme per 'duration' ms, ma rispetta pauseFruitTimer():
-     * se running diventa false interrompe il ciclo.
-     */
     private void sleepWithPause(long duration) throws InterruptedException {
         long target = System.currentTimeMillis() + duration;
         while (running) {
