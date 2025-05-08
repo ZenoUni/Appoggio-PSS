@@ -30,6 +30,8 @@ public class GhostManager {
     private final ImageLoader imageLoader;
     private final Map<Block, Long> nextChangeTime = new HashMap<>();
     private final Random          rand           = new Random();
+    private final Set<Block> ghostsInTunnel = new HashSet<>();
+
     private long randomInterval() { 
         return (4 + rand.nextInt(3)) * 1000L; 
     }
@@ -242,17 +244,20 @@ public class GhostManager {
         ghosts.sort(Comparator.comparingInt(g -> g.ghostType.ordinal()));
     
         for (Block g : ghosts) {
+            // 1) Uscita dalla gabbia
             if (g.isExiting) {
                 g.y -= SPEED;
                 if (g.y + g.height < ghostPortal.y) {
                     g.isExiting = false;
-                    g.image = g.originalImage;
-                    g.direction = randomAvailable(g);
+                    g.image      = g.originalImage;
+                    g.direction  = randomAvailable(g);
                     nextChangeTime.put(g, now + randomInterval());
                 }
-                map.wrapAround(g);
+                handleWrap(g);
                 continue;
             }
+    
+            // 2) Scegli la direzione
             Direction next;
             if (g.isScared) {
                 next = timedRandom(g, now);
@@ -262,33 +267,35 @@ public class GhostManager {
                     case BLUE:
                         next = timedRandom(g, now);
                         break;
-    
                     case ORANGE:
                         boolean chasePhase = ((now / ORANGE_PHASE_MS) % 2) == 1;
-                        if (chasePhase) {
-                            next = chase(g);
-                        } else {
-                            next = timedRandom(g, now);
-                        }
+                        next = chasePhase ? chase(g) : timedRandom(g, now);
                         break;
-    
                     case PINK:
-                        if (cagedGhosts.contains(g)) {
-                            next = Direction.UP;
-                        } else {
-                            next = predictChase(g);
-                        }
+                        next = cagedGhosts.contains(g) ? Direction.UP : predictChase(g);
                         break;
-    
                     default:
                         next = timedRandom(g, now);
-                        break;
                 }
             }
     
+            // 3) Movimento e wrapping
             moveAlong(g, next, now);
+            handleWrap(g);
         }
     }
+    
+    private void handleWrap(Block g) {
+        if (isOnTunnel(g)) {
+            if (!ghostsInTunnel.contains(g)) {
+                map.wrapAround(g);
+                ghostsInTunnel.add(g);
+            }
+        } else {
+            ghostsInTunnel.remove(g);
+        }
+    }
+
     private static class Point {
         final int x, y;
         Point(int x, int y) {
@@ -342,7 +349,7 @@ public class GhostManager {
         g.direction = d;
         int nx = g.x + d.dx * SPEED;
         int ny = g.y + d.dy * SPEED;
-
+    
         if (!collidesWithWall(nx, ny)) {
             g.x = nx; 
             g.y = ny;
@@ -351,8 +358,8 @@ public class GhostManager {
             g.direction = nd;
             nextChangeTime.put(g, now + randomInterval());
         }
-        map.wrapAround(g);
     }
+    
 
     private boolean collidesWithWall(int x, int y) {
         Block test = new Block(null, x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE, null);
@@ -384,4 +391,17 @@ public class GhostManager {
         if (ok.isEmpty()) return g.direction;
         return ok.get(rand.nextInt(ok.size()));
     }
+
+    private boolean isOnTunnel(Block g) {
+        for (Block t : map.getTunnels()) {
+            if (g.x < t.x + t.width &&
+                g.x + g.width > t.x &&
+                g.y < t.y + t.height &&
+                g.y + g.height > t.y) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
 }
