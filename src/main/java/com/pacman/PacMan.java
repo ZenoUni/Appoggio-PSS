@@ -386,18 +386,19 @@ private void handleKeyPress(KeyCode key) {
 
     private void nextLevel() {
         level++;
+        //Aggiunta vita ogni 3 livelli, fino a un massimo di 3
+        if (level % 3 == 1 && lives < 3) {
+            lives++;
+        }
         flashing = true;
         gameMap.flashWalls(() -> {
             gameMap.reload();
             pacman = gameMap.resetPacman();
-    
-            // 🔧 RESET FANTASMI PRIMA DEL BLOCCO
             ghostManager.resetGhosts(
                 gameMap.getGhosts(),
                 gameMap.getGhostPortal(),
                 gameMap.getPowerFoods()
             );
-    
             currentDirection = null;
             storedDirection  = null;
             flashing = false;
@@ -407,7 +408,6 @@ private void handleKeyPress(KeyCode key) {
         });
     }
     
-
     public int getCurrentLevel() {
         return level;
     }
