@@ -34,7 +34,11 @@ public class GhostManager {
         return (4 + rand.nextInt(3)) * 1000L; 
     }
 
-    public GhostManager(List<Block> ghosts, Block ghostPortal, List<Block> powerFoods, GameMap map, PacMan game) {
+    public GhostManager(List<Block> allGhosts,
+                        Block ghostPortal,
+                        List<Block> powerFoods,
+                        GameMap map,
+                        PacMan game) {
         this.imageLoader      = new ImageLoader();
         this.scaredGhostImage = imageLoader.getScaredGhostImage();
         this.whiteGhostImage  = imageLoader.getWhiteGhostImage();
@@ -45,43 +49,52 @@ public class GhostManager {
         this.map              = map;
         this.game             = game;
 
-        if (!ghosts.isEmpty()) {
-            this.ghosts.add(ghosts.get(0));
-            for (int i = 1; i < ghosts.size(); i++) {
-                this.cagedGhosts.add(ghosts.get(i));
-            }
-        }
+        // 1) Trova il fantasma RED nella lista in ingresso
+        Block red = allGhosts.stream()
+            .filter(g -> g.ghostType == Block.GhostType.RED)
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Manca il fantasma RED!"));
 
+        // 2) Metti RED in movimento immediato, tutti gli altri in gabbia
+        ghosts.add(red);
+        allGhosts.stream()
+                 .filter(g -> g != red)
+                 .forEach(cagedGhosts::add);
+
+        // 3) Inizializza il timer di cambio direzione solo per RED
         long now = System.currentTimeMillis();
-        for (Block g : this.ghosts) {
-            nextChangeTime.put(g, now + randomInterval());
-        }
+        nextChangeTime.put(red, now + randomInterval());
     }
 
-    public void resetGhosts(List<Block> newGhosts,
-                        Block newPortal,
-                        List<Block> newPowerFoods) {
+    public void resetGhosts(List<Block> allGhosts,
+                            Block newPortal,
+                            List<Block> newPowerFoods) {
+        // Pulisci tutti gli stati
         ghosts.clear();
         cagedGhosts.clear();
         respawningGhosts.clear();
-        this.ghostPortal = newPortal;
-        ghostsAreScared   = false;
-        scaredEndTime     = 0;
-        cageTimerStarted  = false;
         cageReleaseTime.clear();
+        this.ghostPortal     = newPortal;
+        ghostsAreScared      = false;
+        scaredEndTime        = 0;
+        cageTimerStarted     = false;
 
-        if (!newGhosts.isEmpty()) {
-            ghosts.add(newGhosts.get(0));  // RED
-            for (int i = 1; i < newGhosts.size(); i++) {
-                cagedGhosts.add(newGhosts.get(i));
-            }
-        }
+        // 1) Trova di nuovo RED
+        Block red = allGhosts.stream()
+            .filter(g -> g.ghostType == Block.GhostType.RED)
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Manca il fantasma RED!"));
 
+        // 2) Riposiziona RED in movimento e gli altri in gabbia
+        ghosts.add(red);
+        allGhosts.stream()
+                 .filter(g -> g != red)
+                 .forEach(cagedGhosts::add);
+
+        // 3) Reinizializza il timer di cambio direzione solo per RED
         long now = System.currentTimeMillis();
         nextChangeTime.clear();
-        for (Block g : ghosts) {
-            nextChangeTime.put(g, now + randomInterval());
-        }
+        nextChangeTime.put(red, now + randomInterval());
     }
 
     public void startCageTimers() {
@@ -89,7 +102,6 @@ public class GhostManager {
         cageTimerStarted = true;
 
         long zero = System.currentTimeMillis();
-
         for (Block g : cagedGhosts) {
             long delay = switch (g.ghostType) {
                 case BLUE   -> BLUE_DELAY_MS;
@@ -176,8 +188,8 @@ public class GhostManager {
         g.isScared = false;
         g.image = g.originalImage;
         g.image     = g.isScared ? scaredGhostImage : g.originalImage;
-        g.x         = ghostPortal.x + PacMan.TILE_SIZE/2;
-        g.y         = ghostPortal.y + PacMan.TILE_SIZE/2;
+        g.x = ghostPortal.x + (ghostPortal.width  - g.width)  / 2;
+        g.y = ghostPortal.y + (ghostPortal.height - g.height) / 2;        
         g.direction = Direction.UP;
         g.isExiting = true;
         respawningGhosts.add(new RespawnGhost(g, System.currentTimeMillis() + 1000));
@@ -207,8 +219,9 @@ public class GhostManager {
             if (releaseAt != null && now >= releaseAt) {
                 it.remove();
     
-                g.x         = ghostPortal.x + PacMan.TILE_SIZE / 2;
-                g.y         = ghostPortal.y + PacMan.TILE_SIZE / 2;
+                g.x = ghostPortal.x + (ghostPortal.width  - g.width)  / 2;
+                g.y = ghostPortal.y + (ghostPortal.height - g.height) / 2;
+
                 g.isExiting = true;
                 g.direction = Direction.UP;
                 g.isScared = ghostsAreScared;
