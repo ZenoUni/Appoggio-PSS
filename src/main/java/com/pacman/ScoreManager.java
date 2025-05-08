@@ -23,9 +23,7 @@ public class ScoreManager {
                                 int level) {
         int tileSize    = PacMan.TILE_SIZE;
         int boardWidth  = PacMan.BOARD_WIDTH;
-        int boardHeight = PacMan.BOARD_HEIGHT; // non serve più sotto
         
-        // --- IMPORTANTE ---
         // Disegno la barra IN ALTO, non in fondo
         gc.setFill(Color.BLACK);
         gc.fillRect(0, 0, boardWidth, tileSize);

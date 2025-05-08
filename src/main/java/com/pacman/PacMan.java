@@ -1,8 +1,6 @@
 package com.pacman;
 
 import javafx.animation.AnimationTimer;
-import javafx.animation.PauseTransition;
-import javafx.util.Duration;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
