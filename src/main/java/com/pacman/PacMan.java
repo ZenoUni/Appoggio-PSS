@@ -27,6 +27,7 @@ public class PacMan extends Pane {
     private boolean flashing          = false;
     private boolean waitingForRestart = false;
     private boolean waitingForLifeKey = false;
+    private double speedMultiplier = 1.0;
 
     private KeyCode currentDirection = null;
     private KeyCode storedDirection  = null;
@@ -95,30 +96,29 @@ public class PacMan extends Pane {
     }
 
     /** Avvia il gioco solo se premi una freccia */
-private void startAfterReady(KeyCode initialDir) {
-    // Ignora se già avviato o tasto non direzionale
-    if (started) return;
-    if (keyToDir(initialDir) == null) return;
+    private void startAfterReady(KeyCode initialDir) {
+        // Ignora se già avviato o tasto non direzionale
+        if (started) return;
+        if (keyToDir(initialDir) == null) return;
 
-    started = true;
-    gameMap.setFirstLoad(false);
+        started = true;
+        gameMap.setFirstLoad(false);
 
-    // 1) Primo input diventa direzione iniziale
-    currentDirection = initialDir;
-    applyImage(currentDirection);
+        // 1) Primo input diventa direzione iniziale
+        currentDirection = initialDir;
+        applyImage(currentDirection);
 
-    // 2) Avvio timer frutta e fantasmi
-    fruitManager.startFruitTimer();
-    ghostManager.startCageTimers();
+        // 2) Avvio timer frutta e fantasmi
+        fruitManager.startFruitTimer();
+        ghostManager.startCageTimers();
 
-    // 3) Ripristino listener “reali”
-    setOnMouseClicked(e -> requestFocus());
-    setOnKeyPressed(e -> handleKeyPress(e.getCode()));
+        // 3) Ripristino listener “reali”
+        setOnMouseClicked(e -> requestFocus());
+        setOnKeyPressed(e -> handleKeyPress(e.getCode()));
 
-    // 4) Avvio loop
-    startGameLoop();
-}
-
+        // 4) Avvio loop
+        startGameLoop();
+    }
 
     private void startGameLoop() {
         gameLoop = new AnimationTimer() {
@@ -126,7 +126,7 @@ private void startAfterReady(KeyCode initialDir) {
             public void handle(long now) {
                 if (!gameOver && !flashing) {
                     // 1) Gestione input e movimento Pac-Man
-                    if (storedDirection != null && isAligned(pacman) && gameMap.canMove(pacman, storedDirection)) {
+                    if (storedDirection != null && gameMap.canMove(pacman, storedDirection)) {
                         currentDirection = storedDirection;
                         applyImage(currentDirection);
                         storedDirection = null;
@@ -153,68 +153,69 @@ private void startAfterReady(KeyCode initialDir) {
         return 11; // il numero corretto della riga dove mostri "READY!" -1
     }    
 
-    private boolean isAligned(Block b) {
-        return (b.x % TILE_SIZE == 0) && (b.y % TILE_SIZE == 0);
-    }
-
     private void movePacman() {
         if (currentDirection == null) return;
-        if (gameMap.canMove(pacman, currentDirection)) {
+
+        // ripetiamo N volte il passo base (4px) in base al moltiplicatore intero
+        int steps = (int) Math.round(speedMultiplier);
+        for (int s = 0; s < steps; s++) {
+            if (!gameMap.canMove(pacman, currentDirection)) break;
+            // passo base
             switch (currentDirection) {
                 case UP    -> pacman.y -= 4;
                 case DOWN  -> pacman.y += 4;
                 case LEFT  -> pacman.x -= 4;
                 case RIGHT -> pacman.x += 4;
-                default    -> { }
-            }
-
-            animationCounter++;
-            if (animationCounter >= 10) {
-                mouthOpen = !mouthOpen;
-                animationCounter = 0;
-            }
-            applyImage(currentDirection);
-
-            if (!inTunnel) {
-                for (Block t : gameMap.getTunnels()) {
-                    if (collision(pacman, t)) {
-                        inTunnel = true;
-                        KeyCode prevDir    = currentDirection;
-                        KeyCode prevStored = storedDirection;
-                        gameMap.wrapAround(pacman);
-                        currentDirection = prevDir;
-                        storedDirection  = prevStored;
-                        break;
-                    }
-                }
-            } else {
-                boolean still = false;
-                for (Block t : gameMap.getTunnels()) if (collision(pacman, t)) still = true;
-                if (!still) inTunnel = false;
-            }
-
-            score += gameMap.collectFood(pacman);
-            if (gameMap.collectPowerFood(pacman)) {
-                score += 50;
-                ghostManager.activateScaredMode();
-            }
-            int prevScore = score;
-            score += fruitManager.collectFruit(pacman);
-            if (score > prevScore) {
-                // Frutto mangiato: deduciamo il tipo dal punteggio guadagnato
-                int gained = score - prevScore;
-                FruitManager.FruitType type = switch (gained) {
-                    case 200 -> FruitManager.FruitType.CHERRY;
-                    case 400 -> FruitManager.FruitType.APPLE;
-                    case 800 -> FruitManager.FruitType.STRAWBERRY;
-                    default -> null;
-                };
-                if (type != null) {
-                    scoreManager.addCollectedFruit(type);
-                }
+                default    -> {}
             }
         }
+
+        // animazione bocca invariata
+        animationCounter++;
+        if (animationCounter >= 10) {
+            mouthOpen = !mouthOpen;
+            animationCounter = 0;
+        }
+        applyImage(currentDirection);
+
+        // tunnel e raccolta cibo/frutta rimangono identici
+        if (!inTunnel) {
+            for (Block t : gameMap.getTunnels()) {
+                if (collision(pacman, t)) {
+                    inTunnel = true;
+                    KeyCode prevDir    = currentDirection;
+                    KeyCode prevStored = storedDirection;
+                    gameMap.wrapAround(pacman);
+                    currentDirection = prevDir;
+                    storedDirection  = prevStored;
+                    break;
+                }
+            }
+        } else {
+            boolean still = false;
+            for (Block t : gameMap.getTunnels()) if (collision(pacman, t)) still = true;
+            if (!still) inTunnel = false;
+        }
+
+        score += gameMap.collectFood(pacman);
+        if (gameMap.collectPowerFood(pacman)) {
+            score += 50;
+            ghostManager.activateScaredMode();
+        }
+        int prevScore = score;
+        score += fruitManager.collectFruit(pacman);
+        if (score > prevScore) {
+            int gained = score - prevScore;
+            FruitManager.FruitType type = switch (gained) {
+                case 200 -> FruitManager.FruitType.CHERRY;
+                case 400 -> FruitManager.FruitType.APPLE;
+                case 800 -> FruitManager.FruitType.STRAWBERRY;
+                default  -> null;
+            };
+            if (type != null) scoreManager.addCollectedFruit(type);
+        }
     }
+
 
     /** Converte una freccia da tastiera in Direction */
     private Direction keyToDir(KeyCode k) {
@@ -371,7 +372,12 @@ private void startAfterReady(KeyCode initialDir) {
         return t.getLayoutBounds().getWidth();
     }
 
+    // Nel tuo PacMan.java, trova e sostituisci il metodo loseLife() con questa versione:
+
     private void loseLife() {
+        // **Resetta subito il superpotere se era attivo**
+        setSpeedMultiplier(1.0);
+
         lives--;
         fruitManager.pauseFruitTimer();
         gameLoop.stop();  // blocca sempre
@@ -383,6 +389,7 @@ private void startAfterReady(KeyCode initialDir) {
             drawLifeLost();
         }
     }
+
     
     private void drawLifeLost() {
         draw();  // ridisegna
@@ -412,9 +419,14 @@ private void startAfterReady(KeyCode initialDir) {
         gc.fillText(prompt, (BOARD_WIDTH - pw) / 2, (BOARD_HEIGHT + TILE_SIZE) / 2 + 40);
     }
 
+    // Sempre in PacMan.java, trova e sostituisci nextLevel() con questa versione:
+
     private void nextLevel() {
+        // **Anche quando si passa di livello, togliamo il superpotere**
+        setSpeedMultiplier(1.0);
+
         level++;
-        //Aggiunta vita ogni 3 livelli, fino a un massimo di 3
+        // Aggiunta vita ogni 3 livelli, fino a un massimo di 3
         if (level % 3 == 1 && lives < 3) {
             lives++;
         }
@@ -435,9 +447,17 @@ private void startAfterReady(KeyCode initialDir) {
             draw();
         });
     }
+
     
     public int getCurrentLevel() {
         return level;
     }
-    
+
+    public void setSpeedMultiplier(double m) {
+        this.speedMultiplier = m;
+    }
+
+    public double getSpeedMultiplier() {
+        return speedMultiplier;
+    }
 }

@@ -1,15 +1,18 @@
 package com.pacman;
 
+import javafx.application.Platform;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class FruitManager {
     private final PacMan game;
     private final ImageLoader imageLoader;
     private final List<Fruit> fruits = new ArrayList<>();
+    private final Random rand = new Random();
 
     private Thread worker;
     private volatile boolean running = false;
@@ -22,8 +25,8 @@ public class FruitManager {
 
     private static final int MAX_FRUITS_PER_LEVEL  = 2;
     private static final int FRUIT_VISIBLE_MS      = 8000;
-    private static final int FIRST_DELAY_MS        = 20000;
-    private static final int SECOND_DELAY_MS       = 20000;
+    private static final int FIRST_DELAY_MS        = 5000;
+    private static final int SECOND_DELAY_MS       = 5000;
 
     public FruitManager(PacMan game, ImageLoader loader) {
         this.game = game;
@@ -116,23 +119,43 @@ public class FruitManager {
     public int collectFruit(Block pacman) {
         for (int i = 0; i < fruits.size(); i++) {
             Fruit f = fruits.get(i);
-            // collisione “rettangolare” invece che uguaglianza di coordinate
             if (pacman.x < f.getX() + PacMan.TILE_SIZE &&
                 pacman.x + pacman.width > f.getX() &&
                 pacman.y < f.getY() + PacMan.TILE_SIZE &&
                 pacman.y + pacman.height > f.getY()) {
+
                 fruits.remove(i);
-                // se siamo in fase1 (frutto mangiato entro 8s) salta subito a fase2
+
+                // avanzamento fase timer frutta
                 if (phase == 1) {
                     phase = 2;
                     remainingDelay = SECOND_DELAY_MS;
                     lastPhaseStart = System.currentTimeMillis();
                     if (worker != null) worker.interrupt();
                 }
+
+                // probabilità 33% di superpower velocità
+                if (rand.nextDouble() < 1) {
+                    activateSpeedPower();
+                }
+
                 return f.getType().getScore();
             }
         }
         return 0;
+    }
+
+    private void activateSpeedPower() {
+        // raddoppia la velocità di Pac-Man
+        game.setSpeedMultiplier(2.0);
+
+        // dopo 10 secondi riporta a normale
+        new Thread(() -> {
+            try {
+                Thread.sleep(10_000);
+            } catch (InterruptedException ignored) {}
+            Platform.runLater(() -> game.setSpeedMultiplier(1.0));
+        }, "SpeedPowerTimer").start();
     }
 
     public void draw(GraphicsContext gc) {
