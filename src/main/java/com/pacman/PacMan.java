@@ -94,26 +94,31 @@ public class PacMan extends Pane {
         setOnMouseClicked(e -> requestFocus());
     }
 
-    private void startAfterReady(KeyCode initialDir) {
-        if (started) return;
-        started = true;
-        gameMap.setFirstLoad(false);
-    
-        // 1) Primo input divent i direzione iniziale
-        currentDirection = initialDir;
-        applyImage(currentDirection);
-    
-        // 2) Avvio timer frutta
-        fruitManager.startFruitTimer();
-        ghostManager.startCageTimers();
-    
-        // 3) Ripristino listener “reali”
-        setOnMouseClicked(e -> requestFocus());
-        setOnKeyPressed(e -> handleKeyPress(e.getCode()));
-    
-        // 4) Avvio loop
-        startGameLoop();
-    }
+    /** Avvia il gioco solo se premi una freccia */
+private void startAfterReady(KeyCode initialDir) {
+    // Ignora se già avviato o tasto non direzionale
+    if (started) return;
+    if (keyToDir(initialDir) == null) return;
+
+    started = true;
+    gameMap.setFirstLoad(false);
+
+    // 1) Primo input diventa direzione iniziale
+    currentDirection = initialDir;
+    applyImage(currentDirection);
+
+    // 2) Avvio timer frutta e fantasmi
+    fruitManager.startFruitTimer();
+    ghostManager.startCageTimers();
+
+    // 3) Ripristino listener “reali”
+    setOnMouseClicked(e -> requestFocus());
+    setOnKeyPressed(e -> handleKeyPress(e.getCode()));
+
+    // 4) Avvio loop
+    startGameLoop();
+}
+
 
     private void startGameLoop() {
         gameLoop = new AnimationTimer() {
@@ -222,7 +227,6 @@ public class PacMan extends Pane {
         };
     }
 
-
     /** Rende visibile a GhostManager la posizione di Pac-Man */
     public Block getPacmanBlock() {
         return pacman;
@@ -278,69 +282,80 @@ public class PacMan extends Pane {
         }
     }
 
-    // all’interno di handleKeyPress(...)
-private void handleKeyPress(KeyCode key) {
-    if (gameOver) {
-        mainMenu.returnToMenu();
-        return;
+    private void handleKeyPress(KeyCode key) {
+        // Se il gioco è finito, torna al menu
+        if (gameOver) {
+            mainMenu.returnToMenu();
+            return;
+        }
+    
+        // Durante il recupero di una vita persa, ignora tutto tranne le frecce
+        if (waitingForLifeKey) {
+            waitingForLifeKey = false;
+    
+            // 1) reset mappa e frutta
+            gameMap.resetEntities();
+            pacman = gameMap.getPacman();
+    
+            // 2) ripristina i fantasmi (tutti immobili) e poi avvia il timer
+            ghostManager.resetGhosts(
+                gameMap.getGhosts(),
+                gameMap.getGhostPortal(),
+                gameMap.getPowerFoods()
+            );
+            ghostManager.startCageTimers();
+    
+            fruitManager.startFruitTimer();
+    
+            // 3) direzione iniziale (solo se è freccia)
+            if (keyToDir(key) != null) {
+                currentDirection = key;
+                applyImage(currentDirection);
+            }
+    
+            // 4) riprendi loop
+            gameLoop.start();
+            return;
+        }
+    
+        // Durante il restart del livello, ignora tutto tranne le frecce
+        if (waitingForRestart) {
+            waitingForRestart = false;
+    
+            // 1) reset livello
+            gameMap.reload();
+            gameMap.resetEntities();
+            pacman = gameMap.getPacman();
+    
+            // 2) reset fantasmi immobilizzati, poi avvia il timer
+            ghostManager.resetGhosts(
+                gameMap.getGhosts(),
+                gameMap.getGhostPortal(),
+                gameMap.getPowerFoods()
+            );
+            ghostManager.startCageTimers();
+    
+            fruitManager.reset();
+            fruitManager.startFruitTimer();
+    
+            // 3) direzione iniziale (solo se è freccia)
+            if (keyToDir(key) != null) {
+                currentDirection = key;
+                applyImage(currentDirection);
+            }
+    
+            // 4) riavvia loop
+            startGameLoop();
+            return;
+        }
+    
+        // Nel gioco normale, accetta solo le frecce; ignora tutti gli altri tasti
+        if (keyToDir(key) != null) {
+            storedDirection = key;
+        }
+        // altrimenti non fare nulla
     }
-    if (waitingForLifeKey) {
-        waitingForLifeKey = false;
-
-        // 1) reset mappa e frutta
-        gameMap.resetEntities();
-        pacman = gameMap.getPacman();
-
-        // 2) ripristina i fantasmi (tutti immobili) e poi avvia il timer
-        ghostManager.resetGhosts(
-            gameMap.getGhosts(),
-            gameMap.getGhostPortal(),
-            gameMap.getPowerFoods()
-        );
-        ghostManager.startCageTimers();
-
-        fruitManager.startFruitTimer();
-
-        // 3) direzione iniziale
-        currentDirection = key;
-        applyImage(currentDirection);
-
-        // 4) riprendi loop
-        gameLoop.start();
-        return;
-    }
-
-    if (waitingForRestart) {
-        waitingForRestart = false;
-
-        // 1) reset livello
-        gameMap.reload();
-        gameMap.resetEntities();
-        pacman = gameMap.getPacman();
-
-        // 2) reset fantasmi immobilizzati, poi avvia il timer
-        ghostManager.resetGhosts(
-            gameMap.getGhosts(),
-            gameMap.getGhostPortal(),
-            gameMap.getPowerFoods()
-        );
-        ghostManager.startCageTimers();
-
-        fruitManager.reset();
-        fruitManager.startFruitTimer();
-
-        // 3) direzione iniziale
-        currentDirection = key;
-        applyImage(currentDirection);
-
-        // 4) riavvia loop
-        startGameLoop();
-        return;
-    }
-
-    // gioco normale
-    storedDirection = key;
-}
+    
 
 
     private boolean collision(Block a, Block c) {
