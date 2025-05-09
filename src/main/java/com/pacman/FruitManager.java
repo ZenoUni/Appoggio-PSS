@@ -25,8 +25,8 @@ public class FruitManager {
 
     private static final int MAX_FRUITS_PER_LEVEL  = 2;
     private static final int FRUIT_VISIBLE_MS      = 8000;
-    private static final int FIRST_DELAY_MS        = 5000;
-    private static final int SECOND_DELAY_MS       = 5000;
+    private static final int FIRST_DELAY_MS        = 20000;
+    private static final int SECOND_DELAY_MS       = 20000;
 
     public FruitManager(PacMan game, ImageLoader loader) {
         this.game = game;
@@ -135,7 +135,7 @@ public class FruitManager {
                 }
 
                 // con 33% estrae un superpotere
-                if (rand.nextDouble() < 1) {
+                if (rand.nextDouble() < 0.33) {
                     // decide se speed o freeze (50/50)
                     if (rand.nextBoolean()) {
                         activateSpeedPower();

@@ -420,8 +420,6 @@ public class PacMan extends Pane {
         gc.fillText(prompt, (BOARD_WIDTH - pw) / 2, (BOARD_HEIGHT + TILE_SIZE) / 2 + 40);
     }
 
-    // Sempre in PacMan.java, trova e sostituisci nextLevel() con questa versione:
-
     private void nextLevel() {
         setSpeedMultiplier(1.0);
         ghostManager.unfreeze();
