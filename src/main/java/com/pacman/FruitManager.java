@@ -134,9 +134,14 @@ public class FruitManager {
                     if (worker != null) worker.interrupt();
                 }
 
-                // probabilità 33% di superpower velocità
+                // con 33% estrae un superpotere
                 if (rand.nextDouble() < 1) {
-                    activateSpeedPower();
+                    // decide se speed o freeze (50/50)
+                    if (rand.nextBoolean()) {
+                        activateSpeedPower();
+                    } else {
+                        activateFreezePower();
+                    }
                 }
 
                 return f.getType().getScore();
@@ -146,16 +151,17 @@ public class FruitManager {
     }
 
     private void activateSpeedPower() {
-        // raddoppia la velocità di Pac-Man
         game.setSpeedMultiplier(2.0);
-
-        // dopo 10 secondi riporta a normale
+        // dopo 10s ritorna normale
         new Thread(() -> {
-            try {
-                Thread.sleep(10_000);
-            } catch (InterruptedException ignored) {}
+            try { Thread.sleep(10_000); } catch (InterruptedException ignored) {}
             Platform.runLater(() -> game.setSpeedMultiplier(1.0));
         }, "SpeedPowerTimer").start();
+    }
+
+    private void activateFreezePower() {
+        // chiede a GhostManager di congelarsi 5s
+        game.freezeGhosts(5_000);
     }
 
     public void draw(GraphicsContext gc) {

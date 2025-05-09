@@ -31,6 +31,9 @@ public class GhostManager {
     private final Map<Block, Long> nextChangeTime = new HashMap<>();
     private final Random          rand           = new Random();
     private final Set<Block> ghostsInTunnel = new HashSet<>();
+    private boolean frozen = false;
+    private long frozenEndTime = 0;
+
 
     private long randomInterval() { 
         return (4 + rand.nextInt(3)) * 1000L; 
@@ -237,9 +240,20 @@ public class GhostManager {
 
     public void moveGhosts() {
         long now = System.currentTimeMillis();
+
+        // gestione del freeze: se siamo congelati e non è ancora scaduto
+        if (frozen) {
+            if (now >= frozenEndTime) {
+                frozen = false;  // scade il freeze
+            } else {
+                return;          // ignora tutto il movimento finché freeze è attivo
+            }
+        }
+
         updateScaredState();
         checkRespawningGhosts();
         checkCagedGhostsRelease();
+
     
         ghosts.sort(Comparator.comparingInt(g -> g.ghostType.ordinal()));
     
@@ -403,5 +417,18 @@ public class GhostManager {
         }
         return false;
     }
+
+    /** Congela tutti i fantasmi per durationMs millisecondi */
+    public void freeze(long durationMs) {
+        frozen = true;
+        frozenEndTime = System.currentTimeMillis() + durationMs;
+    }
+
+    /** Annulla immediatamente qualunque freeze attivo */
+    public void unfreeze() {
+        frozen = false;
+        // opzionale: frozenEndTime = 0;
+    }
+
     
 }

@@ -377,10 +377,11 @@ public class PacMan extends Pane {
     private void loseLife() {
         // **Resetta subito il superpotere se era attivo**
         setSpeedMultiplier(1.0);
+        ghostManager.unfreeze();
 
         lives--;
         fruitManager.pauseFruitTimer();
-        gameLoop.stop();  // blocca sempre
+        gameLoop.stop();
         if (lives <= 0) {
             gameOver = true;
             drawGameOver();
@@ -422,10 +423,11 @@ public class PacMan extends Pane {
     // Sempre in PacMan.java, trova e sostituisci nextLevel() con questa versione:
 
     private void nextLevel() {
-        // **Anche quando si passa di livello, togliamo il superpotere**
         setSpeedMultiplier(1.0);
+        ghostManager.unfreeze();
 
         level++;
+        flashing = true;
         // Aggiunta vita ogni 3 livelli, fino a un massimo di 3
         if (level % 3 == 1 && lives < 3) {
             lives++;
@@ -460,4 +462,9 @@ public class PacMan extends Pane {
     public double getSpeedMultiplier() {
         return speedMultiplier;
     }
+
+    public void freezeGhosts(long durationMs) {
+    ghostManager.freeze(durationMs);
+}
+
 }
