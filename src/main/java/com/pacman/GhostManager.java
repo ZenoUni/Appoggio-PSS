@@ -33,7 +33,7 @@ public class GhostManager {
     private final Set<Block> ghostsInTunnel = new HashSet<>();
     private boolean frozen = false;
     private long frozenEndTime = 0;
-
+    private final SoundManager soundManager;
 
     private long randomInterval() { 
         return (4 + rand.nextInt(3)) * 1000L; 
@@ -43,7 +43,8 @@ public class GhostManager {
                         Block ghostPortal,
                         List<Block> powerFoods,
                         GameMap map,
-                        PacMan game) {
+                        PacMan game,
+                        SoundManager soundManager) {
         this.imageLoader      = new ImageLoader();
         this.scaredGhostImage = imageLoader.getScaredGhostImage();
         this.whiteGhostImage  = imageLoader.getWhiteGhostImage();
@@ -53,6 +54,8 @@ public class GhostManager {
         this.ghostPortal      = ghostPortal;
         this.map              = map;
         this.game             = game;
+        this.soundManager     = soundManager;
+
 
         // 1) Trova il fantasma RED nella lista in ingresso
         Block red = allGhosts.stream()
@@ -177,6 +180,7 @@ public class GhostManager {
             if (g.isScared) {
                 points += 200;
                 eaten.add(g);
+                soundManager.playSound("eat_ghost");
             } else {
                 onHit.run();
                 return 0;

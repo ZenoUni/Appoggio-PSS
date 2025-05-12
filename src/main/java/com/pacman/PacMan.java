@@ -48,6 +48,9 @@ public class PacMan extends Pane {
     private int  animationCounter = 0;
     private boolean mouthOpen     = true;
 
+    private final SoundManager soundManager = new SoundManager();
+
+
     public PacMan(MainMenu menu) {
         this.mainMenu = menu;
         Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT + TILE_SIZE);
@@ -67,7 +70,8 @@ public class PacMan extends Pane {
             gameMap.getGhostPortal(),
             gameMap.getPowerFoods(),
             gameMap,
-            this
+            this,
+            soundManager
         );
 
         gameMap.resetEntities();
@@ -93,10 +97,19 @@ public class PacMan extends Pane {
         });
         // (opzionale) mantieni il click per dare il focus, ma non per avviare il gioco
         setOnMouseClicked(e -> requestFocus());
+
+        soundManager.loadSound("start", "sounds/start.wav");
+        soundManager.loadSound("death", "sounds/death.wav");
+        soundManager.loadSound("dot", "sounds/dot.wav");
+        soundManager.loadSound("fruit", "sounds/fruit.wav");
+        soundManager.loadSound("eat_ghost", "sounds/eat_ghost.wav");
+
     }
 
     /** Avvia il gioco solo se premi una freccia */
     private void startAfterReady(KeyCode initialDir) {
+        soundManager.playSound("start");
+
         // Ignora se già avviato o tasto non direzionale
         if (started) return;
         if (keyToDir(initialDir) == null) return;
@@ -197,13 +210,20 @@ public class PacMan extends Pane {
             if (!still) inTunnel = false;
         }
 
-        score += gameMap.collectFood(pacman);
+        int foodScore = gameMap.collectFood(pacman);
+        if (foodScore > 0) {
+            soundManager.playSound("dot");
+            score += foodScore;
+        }
+
         if (gameMap.collectPowerFood(pacman)) {
+            
             score += 50;
             ghostManager.activateScaredMode();
         }
         int prevScore = score;
         score += fruitManager.collectFruit(pacman);
+
         if (score > prevScore) {
             int gained = score - prevScore;
             FruitManager.FruitType type = switch (gained) {
@@ -213,7 +233,10 @@ public class PacMan extends Pane {
                 default  -> null;
             };
             if (type != null) scoreManager.addCollectedFruit(type);
+            soundManager.playSound("fruit");
+
         }
+
     }
 
 
@@ -375,6 +398,9 @@ public class PacMan extends Pane {
     // Nel tuo PacMan.java, trova e sostituisci il metodo loseLife() con questa versione:
 
     private void loseLife() {
+
+        soundManager.playSound("death");
+
         // **Resetta subito il superpotere se era attivo**
         setSpeedMultiplier(1.0);
         ghostManager.unfreeze();
