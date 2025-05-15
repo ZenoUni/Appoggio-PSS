@@ -3,7 +3,6 @@ package com.pacman;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
-
 import java.util.*;
 
 public class GhostManager {
@@ -33,12 +32,12 @@ public class GhostManager {
     private final Set<Block> ghostsInTunnel = new HashSet<>();
     private boolean frozen = false;
     private long frozenEndTime = 0;
-    private final SoundManager soundManager;
 
     private long randomInterval() { 
         return (4 + rand.nextInt(3)) * 1000L; 
     }
 
+    // Inizializza i fantasmi: RED parte subito, gli altri restano in gabbia
     public GhostManager(List<Block> allGhosts,
                         Block ghostPortal,
                         List<Block> powerFoods,
@@ -54,30 +53,25 @@ public class GhostManager {
         this.ghostPortal      = ghostPortal;
         this.map              = map;
         this.game             = game;
-        this.soundManager     = soundManager;
 
-
-        // 1) Trova il fantasma RED nella lista in ingresso
         Block red = allGhosts.stream()
             .filter(g -> g.ghostType == Block.GhostType.RED)
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Manca il fantasma RED!"));
 
-        // 2) Metti RED in movimento immediato, tutti gli altri in gabbia
         ghosts.add(red);
         allGhosts.stream()
                  .filter(g -> g != red)
                  .forEach(cagedGhosts::add);
 
-        // 3) Inizializza il timer di cambio direzione solo per RED
         long now = System.currentTimeMillis();
         nextChangeTime.put(red, now + randomInterval());
     }
 
+    // Resetta lo stato dei fantasmi tra un livello e l’altro
     public void resetGhosts(List<Block> allGhosts,
                             Block newPortal,
                             List<Block> newPowerFoods) {
-        // Pulisci tutti gli stati
         ghosts.clear();
         cagedGhosts.clear();
         respawningGhosts.clear();
@@ -87,28 +81,25 @@ public class GhostManager {
         scaredEndTime        = 0;
         cageTimerStarted     = false;
 
-        // 1) Trova di nuovo RED
         Block red = allGhosts.stream()
             .filter(g -> g.ghostType == Block.GhostType.RED)
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Manca il fantasma RED!"));
 
-        // 2) Riposiziona RED in movimento e gli altri in gabbia
         ghosts.add(red);
         allGhosts.stream()
                  .filter(g -> g != red)
                  .forEach(cagedGhosts::add);
 
-        // 3) Reinizializza il timer di cambio direzione solo per RED
         long now = System.currentTimeMillis();
         nextChangeTime.clear();
         nextChangeTime.put(red, now + randomInterval());
     }
 
+    // Avvia i timer per liberare progressivamente i fantasmi dalla gabbia
     public void startCageTimers() {
         if (cageTimerStarted) return;
         cageTimerStarted = true;
-
         long zero = System.currentTimeMillis();
         for (Block g : cagedGhosts) {
             long delay = switch (g.ghostType) {
@@ -121,6 +112,7 @@ public class GhostManager {
         }
     }
     
+    // Disegna i fantasmi, gestendo l’effetto “spaventato” e il blinking
     public void draw(GraphicsContext gc) {
         long timeLeft = Math.max(0, scaredEndTime - System.currentTimeMillis());
         boolean blinking = timeLeft > 0 && timeLeft <= 3000 && ((timeLeft / 500) % 2 == 1);
@@ -134,6 +126,7 @@ public class GhostManager {
         }
     }
 
+    // Disegna il portale da cui escono i fantasmi
     public void drawPortal(GraphicsContext gc) {
         if (ghostPortal != null) {
             gc.setStroke(Color.WHITE);
@@ -145,6 +138,8 @@ public class GhostManager {
         }
     }
 
+    
+    // Attiva la modalità spaventato per tutti i fantasmi per un tempo definito
     public void activateScaredMode() {
         ghostsAreScared = true;
         scaredEndTime   = System.currentTimeMillis() + SCARED_DURATION_MS;
@@ -166,11 +161,11 @@ public class GhostManager {
         }
     }
 
+    // Gestisce collisioni Pac-Man vs fantasmi, restituendo punti o invocando onHit
     public int handleGhostCollisions(Block pacman, Runnable onHit) {
         updateScaredState();
         int points = 0;
         List<Block> eaten = new ArrayList<>();
-
         for (Block g : ghosts) {
             boolean collided = pacman.x < g.x + g.width &&
                                pacman.x + pacman.width > g.x &&
@@ -180,7 +175,7 @@ public class GhostManager {
             if (g.isScared) {
                 points += 200;
                 eaten.add(g);
-                soundManager.playSound("eat_ghost");
+                SoundManager.playSound("eat_ghost");
             } else {
                 onHit.run();
                 return 0;
@@ -210,7 +205,6 @@ public class GhostManager {
             RespawnGhost rg = it.next();
             if (now >= rg.respawnTime) {
                 ghosts.add(rg.ghost);
-                // ‹‹‹ inizializza timer per questo fantasma
                 nextChangeTime.put(rg.ghost, now + randomInterval());
                 it.remove();
             }
@@ -220,49 +214,40 @@ public class GhostManager {
     private void checkCagedGhostsRelease() {
         if (!cageTimerStarted) return;
         long now = System.currentTimeMillis();
-    
         Iterator<Block> it = cagedGhosts.iterator();
         while (it.hasNext()) {
             Block g = it.next();
             Long releaseAt = cageReleaseTime.get(g);
             if (releaseAt != null && now >= releaseAt) {
                 it.remove();
-    
                 g.x = ghostPortal.x + (ghostPortal.width  - g.width)  / 2;
                 g.y = ghostPortal.y + (ghostPortal.height - g.height) / 2;
-
                 g.isExiting = true;
                 g.direction = Direction.UP;
                 g.isScared = ghostsAreScared;
                 g.image    = g.isScared ? scaredGhostImage : g.originalImage;
-    
                 ghosts.add(g);
                 nextChangeTime.put(g, now + randomInterval());
             }
         }
     }
 
+    
+    // Muove tutti i fantasmi in base ai loro stati (uscita, inseguimento, freezati)
     public void moveGhosts() {
         long now = System.currentTimeMillis();
-
-        // gestione del freeze: se siamo congelati e non è ancora scaduto
         if (frozen) {
             if (now >= frozenEndTime) {
-                frozen = false;  // scade il freeze
+                frozen = false;
             } else {
-                return;          // ignora tutto il movimento finché freeze è attivo
+                return;
             }
         }
-
         updateScaredState();
         checkRespawningGhosts();
         checkCagedGhostsRelease();
-
-    
         ghosts.sort(Comparator.comparingInt(g -> g.ghostType.ordinal()));
-    
         for (Block g : ghosts) {
-            // 1) Uscita dalla gabbia
             if (g.isExiting) {
                 g.y -= SPEED;
                 if (g.y + g.height < ghostPortal.y) {
@@ -274,8 +259,6 @@ public class GhostManager {
                 handleWrap(g);
                 continue;
             }
-    
-            // 2) Scegli la direzione
             Direction next;
             if (g.isScared) {
                 next = timedRandom(g, now);
@@ -296,8 +279,6 @@ public class GhostManager {
                         next = timedRandom(g, now);
                 }
             }
-    
-            // 3) Movimento e wrapping
             moveAlong(g, next, now);
             handleWrap(g);
         }
@@ -422,17 +403,13 @@ public class GhostManager {
         return false;
     }
 
-    /** Congela tutti i fantasmi per durationMs millisecondi */
+    // Congela i movimenti dei fantasmi per un certo intervallo
     public void freeze(long durationMs) {
         frozen = true;
         frozenEndTime = System.currentTimeMillis() + durationMs;
     }
-
-    /** Annulla immediatamente qualunque freeze attivo */
+    // Disgela i movimenti dei fantasmi
     public void unfreeze() {
         frozen = false;
-        // opzionale: frozenEndTime = 0;
     }
-
-    
 }

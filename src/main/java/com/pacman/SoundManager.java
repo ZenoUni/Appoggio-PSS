@@ -7,6 +7,7 @@ import java.util.HashMap;
 public class SoundManager {
     private static final HashMap<String, Clip> soundClips = new HashMap<>();
 
+    /** Carica un file audio in memoria sotto la chiave specificata. */
     public static void loadSound(String name, String resourcePath) {
         try {
             URL soundURL = SoundManager.class.getClassLoader().getResource(resourcePath);
@@ -27,7 +28,7 @@ public class SoundManager {
         }
     }
 
-
+    /** Riproduce una singola istanza del suono indicato, riavviandolo se già in esecuzione. */
     public static void playSound(String name) {
         Clip clip = soundClips.get(name);
         if (clip != null) {
@@ -39,6 +40,7 @@ public class SoundManager {
         }
     }
 
+    /** Esegue in loop continuo il suono indicato finché non viene fermato. */
     public static void loopSound(String name) {
         Clip clip = soundClips.get(name);
         if (clip != null) {
@@ -46,10 +48,16 @@ public class SoundManager {
         }
     }
 
+    /** Interrompe la riproduzione in corso del suono indicato, se è in esecuzione. */
     public static void stopSound(String name) {
         Clip clip = soundClips.get(name);
         if (clip != null && clip.isRunning()) {
             clip.stop();
         }
+    }
+
+    /** Restituisce il Clip associato al nome, per poter aggiungere listener o controllarlo manualmente. */
+    public static Clip getClip(String name) {
+        return soundClips.get(name);
     }
 }

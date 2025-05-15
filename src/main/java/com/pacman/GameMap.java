@@ -7,7 +7,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
@@ -54,6 +53,7 @@ public class GameMap {
         loadMap();
     }
 
+    // Carica da tileMap murature, cibo, fantasmi, tunnel e Pac-Man
     public void loadMap() {
         walls.clear();
         foods.clear();
@@ -81,7 +81,6 @@ public class GameMap {
                             null));
                         break;
                     case 'n':
-                        // nessun blocco
                         break;
                     case 'P':
                         pacman = new Block(loader.getPacmanRightImage(), x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE, null);
@@ -125,13 +124,13 @@ public class GameMap {
                             null));
                         break;
                     default:
-                        // carattere non gestito
                         break;
                 }
             }
         }
     }
     
+    // Ripristina solo posizioni di Pac-Man e fantasmi, mantenendo la mappa statica
     public void resetEntities() {
         ghosts.clear();
         for (int r = 0; r < tileMap.length; r++) {
@@ -169,7 +168,6 @@ public class GameMap {
                             Block.GhostType.RED));
                         break;
                     default:
-                        // nessuna azione
                         break;
                 }
             }
@@ -178,25 +176,22 @@ public class GameMap {
 
     public void setFirstLoad(boolean v) { firstLoad = v; }
 
+    // Disegna muri, cibo, power-food e “READY!” al primo caricamento
     public void draw(GraphicsContext gc) {
-        // muri
         for (Block w : walls) {
             if (w.image != null)
                 gc.drawImage(w.image, w.x, w.y,
                              PacMan.TILE_SIZE, PacMan.TILE_SIZE);
         }
-        // cibo
         gc.setFill(Color.WHITE);
         for (Block f : foods) {
             gc.fillRect(f.x, f.y, f.width, f.height);
         }
-        // power-food
         for (Block pf : powerFoods) {
             gc.drawImage(pf.image, pf.x, pf.y,
                          PacMan.TILE_SIZE, PacMan.TILE_SIZE);
         }
 
-        // READY! (primo caricamento)
         if (firstLoad) {
             String msg = "READY!";
             Font   f   = Font.font("PressStart2P",
@@ -221,6 +216,7 @@ public class GameMap {
     }
 
     public Block getPacman()    { return pacman; }
+    // Restituisce un nuovo block di Pac-Man e ricarica la mappa
     public Block resetPacman()  { loadMap(); return pacman; }
     public HashSet<Block> getWalls()    { return walls; }
     public HashSet<Block> getFoods()    { return foods; }
@@ -230,6 +226,7 @@ public class GameMap {
     public List<Image>    getCollectedFruits(){return new ArrayList<>(collectedFruits);}
     public List<Block>    getTunnels()  { return tunnels; }
 
+    // Sposta Pac-Man e fantasmi da un tunnel all’altro
     public void wrapAround(Block b) {
         for (Block t : tunnels) {
             if (collision(b, t)) {
@@ -251,12 +248,14 @@ public class GameMap {
                a.y + a.height > c.y;
     }
 
+    // Verifica collisione con muro o portale
     public boolean isCollisionWithWallOrPortal(Block b) {
         for (Block w : walls) if (collision(b, w)) return true;
         if (ghostPortal != null && collision(b, ghostPortal)) return true;
         return false;
     }
 
+    // Controlla se un blocco può muoversi in base a un tasto freccia
     public boolean canMove(Block b, KeyCode key) {
         int nx = b.x, ny = b.y;
         switch (key) {
@@ -270,6 +269,7 @@ public class GameMap {
         return !isCollisionWithWallOrPortal(test);
     }
 
+    // Rimuove un punto cibo se Pac-Man lo raccoglie e restituisce punteggio
     public int collectFood(Block b) {
         Iterator<Block> it = foods.iterator();
         while (it.hasNext()) {
@@ -281,6 +281,8 @@ public class GameMap {
         }
         return 0;
     }
+
+    // Rimuove una power-food se Pac-Man la raccoglie, attivando il superpotere
     public boolean collectPowerFood(Block b) {
         Iterator<Block> it = powerFoods.iterator();
         while (it.hasNext()) {
@@ -294,9 +296,20 @@ public class GameMap {
     }
 
     public int getPowerFoodCount() { return powerFoods.size(); }
+    
+    // Chiama il callback una volta che tutte le pareti sono state temporaneamente "spente"
     public void flashWalls(Runnable onFinished) {
         walls.forEach(w->w.image=null);
         onFinished.run();
     }
+
+    // Ricarica completamente la mappa da tileMap
     public void reload() { loadMap(); }
+
+    // Imposta l’immagine di tutte le pareti (usato per l’effetto lampeggio)
+    public void setWallImage(Image img) {
+        for (Block w : walls) {
+            w.image = img;
+        }
+    }
 }
