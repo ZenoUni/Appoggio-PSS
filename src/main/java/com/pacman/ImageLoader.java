@@ -23,6 +23,9 @@ public class ImageLoader {
     private final Image scaredGhostImage;
     private final Image whiteGhostImage;
     private final Image wallWhiteImage;
+    private final Image volumeOnImage;
+    private final Image volumeOffImage;
+
 
     public ImageLoader() {
         wallImage        = load("/assets/wall.png");
@@ -44,7 +47,9 @@ public class ImageLoader {
         strawberryImage  = load("/assets/strawberry.png");
         scaredGhostImage = load("/assets/scaredGhost.png");
         whiteGhostImage  = load("/assets/whiteGhost.png");
-        wallWhiteImage = load("/assets/wallWhite.png");
+        wallWhiteImage   = load("/assets/wallWhite.png");
+        volumeOnImage    = load("/assets/volume_on.png");
+        volumeOffImage    = load("/assets/volume_off.png");
     }
 
     private Image load(String path) {
@@ -70,6 +75,8 @@ public class ImageLoader {
     public Image getStrawberryImage()     { return strawberryImage; }
     public Image getScaredGhostImage()    { return scaredGhostImage; }
     public Image getWhiteGhostImage()     { return whiteGhostImage; }
-    public Image getWallWhiteImage() { return wallWhiteImage; }
+    public Image getWallWhiteImage()      { return wallWhiteImage; }
+    public Image getVolumeOnImage()       { return volumeOnImage; }
+    public Image getVolumeOffImage()      { return volumeOffImage; }
 
 }

@@ -12,6 +12,15 @@ public class ScoreManager {
     private final Font scoreFont;
     private final ImageLoader loader;
     private final List<Image> collectedFruits = new ArrayList<>();
+    private boolean muted = false;
+
+    public void toggleMute() {
+    muted = !muted;
+    }
+
+    public boolean isMuted() {
+        return muted;
+    }
 
     /** Inizializza il gestore punteggio con il font per il testo e il loader immagini. */
     public ScoreManager(Font scoreFont, ImageLoader loader) {
@@ -39,6 +48,11 @@ public class ScoreManager {
                 tileSize / 1.5,
                 tileSize / 1.5
             );
+        Image volumeImage = muted ? loader.getVolumeOffImage() : loader.getVolumeOnImage();
+        double iconSize = PacMan.TILE_SIZE * 0.8;
+        double iconX = PacMan.BOARD_WIDTH - iconSize - 5;
+        double iconY = 5;
+        gc.drawImage(volumeImage, iconX, iconY, iconSize, iconSize);
         }
 
         String scoreText = String.format("SCORE %06d", score);

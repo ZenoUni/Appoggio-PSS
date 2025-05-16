@@ -103,10 +103,34 @@ public class PacMan extends Pane {
             startClip.setFramePosition(0);
             startClip.start();
         }
-        setOnMouseClicked(e -> requestFocus());
+        setOnMouseClicked(e -> {
+            requestFocus();
+
+            double mouseX = e.getX();
+            double mouseY = e.getY();
+
+            // Coordinate del pulsante volume in alto a destra
+            double iconSize = TILE_SIZE * 0.8;
+            double iconX = BOARD_WIDTH - iconSize - 5;
+            double iconY = 5;
+
+            if (mouseX >= iconX && mouseX <= iconX + iconSize &&
+                mouseY >= iconY && mouseY <= iconY + iconSize) {
+                scoreManager.toggleMute();
+
+                // Gestione audio effettiva
+                if (scoreManager.isMuted()) {
+                    SoundManager.muteAll();
+                } else {
+                    SoundManager.unmuteAll();
+                }
+
+                draw(); // ridisegna scoreboard con nuova icona
+            }
+        });
     }
 
-    /** Avvia il gioco al primo input dell’utente mostrando READY! e inizializza i timer di frutta e fantasmi. */
+    /* Avvia il gioco al primo input dell’utente mostrando READY! e inizializza i timer di frutta e fantasmi. */
     private void startAfterReady(KeyCode initialDir) {
         if (started) return;
         if (keyToDir(initialDir) == null) return;
@@ -119,7 +143,7 @@ public class PacMan extends Pane {
         startGameLoop();
     }
 
-    /** Crea e avvia il ciclo principale di gioco che gestisce movimento, collisioni, disegno e avanzamento di livello. */
+    /* Crea e avvia il ciclo principale di gioco che gestisce movimento, collisioni, disegno e avanzamento di livello. */
     private void startGameLoop() {
         gameLoop = new AnimationTimer() {
             @Override
@@ -148,7 +172,7 @@ public class PacMan extends Pane {
         return 11;
     }
 
-    /** Esegue il movimento di Pac-Man in base alla direzione attuale, gestisce teletrasporti e raccolta di cibo. */
+    /* Esegue il movimento di Pac-Man in base alla direzione attuale, gestisce teletrasporti e raccolta di cibo. */
     private void movePacman() {
         if (currentDirection == null) return;
         int steps = (int) Math.round(speedMultiplier);
@@ -213,7 +237,7 @@ public class PacMan extends Pane {
         }
     }
 
-    /** Converte un KeyCode freccia in un valore Direction, o restituisce null se non è una freccia. */
+    /* Converte un KeyCode freccia in un valore Direction, o restituisce null se non è una freccia. */
     private Direction keyToDir(KeyCode k) {
         return switch (k) {
             case UP    -> Direction.UP;
@@ -224,12 +248,12 @@ public class PacMan extends Pane {
         };
     }
 
-    /** Ritorna il blocco di Pac-Man per consentire ai fantasmi di conoscere la sua posizione. */
+    /* Ritorna il blocco di Pac-Man per consentire ai fantasmi di conoscere la sua posizione. */
     public Block getPacmanBlock() {
         return pacman;
     }
 
-    /** Ritorna la direzione corrente di Pac-Man o una direzione casuale se non ne ha una valida. */
+    /* Ritorna la direzione corrente di Pac-Man o una direzione casuale se non ne ha una valida. */
     public Direction getPacmanDirection() {
         if (currentDirection != null) {
             Direction d = keyToDir(currentDirection);
@@ -238,7 +262,7 @@ public class PacMan extends Pane {
         return Direction.randomDirection();
     }
 
-    /** Ridisegna l’intero campo di gioco: sfondo, mappa, frutta, Pac-Man, fantasmi e indicatori di punteggio. */
+    /* Ridisegna l’intero campo di gioco: sfondo, mappa, frutta, Pac-Man, fantasmi e indicatori di punteggio. */
     private void draw() {
         gc.setFill(Color.BLACK);
         gc.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT + TILE_SIZE);
@@ -257,7 +281,7 @@ public class PacMan extends Pane {
         }
     }
 
-    /** Imposta l’immagine di Pac-Man (aperta o chiusa) in base alla direzione e allo stato della bocca. */
+    /* Imposta l’immagine di Pac-Man (aperta o chiusa) in base alla direzione e allo stato della bocca. */
     private void applyImage(KeyCode dir) {
         if (!mouthOpen) {
             pacman.image = imageLoader.getPacmanClosedImage();
@@ -272,7 +296,7 @@ public class PacMan extends Pane {
         }
     }
 
-    /** Gestisce l’input da tastiera filtrando gli stati di blocco e indirizzando al reset o allo spostamento. */
+    /* Gestisce l’input da tastiera filtrando gli stati di blocco e indirizzando al reset o allo spostamento. */
     private void handleKeyPress(KeyCode key) {
         
         if (flashing) {
@@ -330,7 +354,7 @@ public class PacMan extends Pane {
         return t.getLayoutBounds().getWidth();
     }
 
-    /** Ferma il gioco al momento della morte, azzera le direzioni e lancia il suono di morte. */
+    /* Ferma il gioco al momento della morte, azzera le direzioni e lancia il suono di morte. */
     private void loseLife() {
         gameLoop.stop();
         fruitManager.pauseFruitTimer();
@@ -350,7 +374,7 @@ public class PacMan extends Pane {
         }
     }
 
-    /** Disegna a schermo il messaggio GAME OVER con l’invito a premere un tasto per tornare. */
+    /* Disegna a schermo il messaggio GAME OVER con l’invito a premere un tasto per tornare. */
     private void drawGameOver() {
         gc.setFill(Color.ORANGE);
         gc.setFont(gameOverFont);
@@ -364,7 +388,7 @@ public class PacMan extends Pane {
         gc.fillText(prompt, (BOARD_WIDTH - pw) / 2, (BOARD_HEIGHT + TILE_SIZE) / 2 + 40);
     }
 
-    /** Imposta i parametri per il passaggio al livello successivo, resetta velocità e vite extra, e avvia il flash dei muri. */
+    /* Imposta i parametri per il passaggio al livello successivo, resetta velocità e vite extra, e avvia il flash dei muri. */
     private void nextLevel() {
         setSpeedMultiplier(1.0);
         ghostManager.unfreeze();
@@ -395,7 +419,7 @@ public class PacMan extends Pane {
         ghostManager.freeze(durationMs);
     }
 
-    /** Esegue tre cicli di lampeggio dei muri, quindi ricarica la mappa e attende il primo input per il livello successivo. */
+    /* Esegue tre cicli di lampeggio dei muri, quindi ricarica la mappa e attende il primo input per il livello successivo. */
     private void flashWalls() {
         new Thread(() -> {
             try {
@@ -425,7 +449,7 @@ public class PacMan extends Pane {
         }).start();
     }
 
-    /** Riprende il gioco dopo la fine del suono di morte: o mostra GAME OVER o resetta la vita e attende input. */
+    /* Riprende il gioco dopo la fine del suono di morte: o mostra GAME OVER o resetta la vita e attende input. */
     private void proceedAfterDeathSound() {
         waitingForDeathSound = false;
         if (lives <= 0) {
