@@ -131,7 +131,7 @@ public class FruitManager {
                     if (worker != null) worker.interrupt();
                 }
                 // con 33% estrae un superpotere
-                if (rand.nextDouble() < 0.33) {
+                if (rand.nextDouble() < 1) {
                     // decide se speed o freeze (50/50)
                     if (rand.nextBoolean()) {
                         activateSpeedPower();

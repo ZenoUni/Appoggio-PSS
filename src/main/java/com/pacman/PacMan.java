@@ -357,6 +357,8 @@ public class PacMan extends Pane {
     /* Ferma il gioco al momento della morte, azzera le direzioni e lancia il suono di morte. */
     private void loseLife() {
         gameLoop.stop();
+        setSpeedMultiplier(1.0);
+        ghostManager.unfreeze();
         fruitManager.pauseFruitTimer();
         currentDirection = null;
         storedDirection  = null;
