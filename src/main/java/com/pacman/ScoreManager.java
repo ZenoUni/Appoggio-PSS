@@ -15,7 +15,7 @@ public class ScoreManager {
     private boolean muted = false;
 
     public void toggleMute() {
-    muted = !muted;
+        muted = !muted;
     }
 
     public boolean isMuted() {
@@ -33,12 +33,18 @@ public class ScoreManager {
                                int lives,
                                int score,
                                int level) {
-        int tileSize = PacMan.TILE_SIZE;
+        int tileSize   = PacMan.TILE_SIZE;
         int boardWidth = PacMan.BOARD_WIDTH;
+        int boardHeight= PacMan.BOARD_HEIGHT;
+
+        // Sfondo barra in alto
         gc.setFill(Color.BLACK);
         gc.fillRect(0, 0, boardWidth, tileSize);
+
         gc.setFont(scoreFont);
         gc.setFill(Color.YELLOW);
+
+        // Vita
         Image lifeImg = loader.getPacmanRightImage();
         for (int i = 0; i < lives; i++) {
             gc.drawImage(
@@ -48,30 +54,35 @@ public class ScoreManager {
                 tileSize / 1.5,
                 tileSize / 1.5
             );
-        Image volumeImage = muted ? loader.getVolumeOffImage() : loader.getVolumeOnImage();
-        double iconSize = PacMan.TILE_SIZE * 0.8;
-        double iconX = PacMan.BOARD_WIDTH - iconSize - 5;
-        double iconY = 5;
-        gc.drawImage(volumeImage, iconX, iconY, iconSize, iconSize);
         }
 
+        // Punteggio
         String scoreText = String.format("SCORE %06d", score);
-        Text scoreNode = new Text(scoreText);
+        Text scoreNode   = new Text(scoreText);
         scoreNode.setFont(scoreFont);
         double scoreWidth = scoreNode.getLayoutBounds().getWidth();
         gc.fillText(scoreText, (boardWidth - scoreWidth) / 2, tileSize / 1.5);
 
+        // Livello
         String levelText = String.format("LVL %02d", level);
-        Text levelNode = new Text(levelText);
+        Text levelNode   = new Text(levelText);
         levelNode.setFont(scoreFont);
         double levelWidth = levelNode.getLayoutBounds().getWidth();
         gc.fillText(levelText, boardWidth - levelWidth - 10, tileSize / 1.5);
 
-        int fruitY = PacMan.BOARD_HEIGHT + 2;
+        // Frutti raccolti in basso
+        int fruitY = boardHeight + 2;
         for (int i = 0; i < collectedFruits.size(); i++) {
             Image img = collectedFruits.get(i);
             gc.drawImage(img, i * tileSize, fruitY, tileSize, tileSize);
         }
+
+        // Icona volume in basso a destra
+        Image volumeImage = muted ? loader.getVolumeOffImage() : loader.getVolumeOnImage();
+        double iconSize   = tileSize * 0.8;
+        double iconX      = boardWidth - iconSize - 5;
+        double iconY      = boardHeight + tileSize - iconSize - 5;
+        gc.drawImage(volumeImage, iconX, iconY, iconSize, iconSize);
     }
 
     /** Aggiunge l’immagine del frutto raccolto alla lista per il display successivo. */
@@ -84,9 +95,8 @@ public class ScoreManager {
         collectedFruits.add(img);
     }
 
-    /** Restituisce la lista corrente delle immagini dei frutti raccolti. */
+    /** Restituisce il raccolto corrente. */
     public List<Image> getCollectedFruits() {
         return collectedFruits;
     }
-
 }

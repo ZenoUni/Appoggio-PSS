@@ -112,20 +112,17 @@ public class PacMan extends Pane {
             // Coordinate del pulsante volume in alto a destra
             double iconSize = TILE_SIZE * 0.8;
             double iconX = BOARD_WIDTH - iconSize - 5;
-            double iconY = 5;
+            double iconY    = BOARD_HEIGHT + TILE_SIZE - iconSize - 5;
 
             if (mouseX >= iconX && mouseX <= iconX + iconSize &&
                 mouseY >= iconY && mouseY <= iconY + iconSize) {
                 scoreManager.toggleMute();
-
-                // Gestione audio effettiva
                 if (scoreManager.isMuted()) {
                     SoundManager.muteAll();
                 } else {
                     SoundManager.unmuteAll();
                 }
-
-                draw(); // ridisegna scoreboard con nuova icona
+                draw();
             }
         });
     }
