@@ -435,6 +435,7 @@ public class PacMan extends Pane {
                 e.printStackTrace();
             } finally {
                 flashing = false;
+                fruitManager.reset();
                 gameMap.reload();
                 gameMap.resetEntities();
                 pacman = gameMap.getPacman();
@@ -465,7 +466,6 @@ public class PacMan extends Pane {
             gameMap.getPowerFoods()
         );
         ghostManager.startCageTimers();
-        fruitManager.startFruitTimer();
         waitingForLifeKey = true;
         draw();
     }
