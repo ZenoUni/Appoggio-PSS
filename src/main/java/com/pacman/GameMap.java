@@ -1,6 +1,7 @@
 package com.pacman;
 
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.effect.Light.Point;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
@@ -9,7 +10,9 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 
 public class GameMap {
@@ -36,7 +39,6 @@ public class GameMap {
         "XO               OX",
         "XXXXXXXXXXXXXXXXXXX"
     };
-
     private final HashSet<Block> walls      = new HashSet<>();
     private final HashSet<Block> foods      = new HashSet<>();
     private final HashSet<Block> ghosts     = new HashSet<>();
@@ -47,6 +49,7 @@ public class GameMap {
     private final List<Image>    collectedFruits = new ArrayList<>();
     private final ImageLoader    loader;
     private boolean firstLoad = true;
+
 
     public GameMap(ImageLoader loader) {
         this.loader = loader;
@@ -312,4 +315,80 @@ public class GameMap {
             w.image = img;
         }
     }
+    /** Nodo di grafo: coordina col, row (non pixel!) */
+    public static class Point {
+        public final int x, y;
+        public Point(int x, int y) { this.x = x; this.y = y; }
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Point)) return false;
+            Point p = (Point)o;
+            return x == p.x && y == p.y;
+        }
+        @Override public int hashCode() {
+            return 31 * x + y;
+        }
+    }
+
+
+    /**
+     * Costruisce un grafo di nodi (intersezioni/tunnel) per il pathfinding.
+     * Ritorna mappa di posizione -> lista di posizioni adiacenti.
+     */
+    public Map<Point, List<Point>> buildNavigationGraph() {
+        Map<Point, List<Point>> graph = new HashMap<>();
+        int rows = tileMap.length;
+        int cols = tileMap[0].length();
+        // identifica nodi: intersezioni o vicini a tunnel
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                int x = c * PacMan.TILE_SIZE;
+                int y = r * PacMan.TILE_SIZE;
+                Block b = new Block(null, x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE, null);
+                if (!isCollisionWithWallOrPortal(b)) {
+                    // conta direzioni libere
+                    int freeDirs = 0;
+                    for (Direction d : Direction.values()) {
+                        Block nb = new Block(null, x + d.dx*PacMan.TILE_SIZE, y + d.dy*PacMan.TILE_SIZE,
+                                             PacMan.TILE_SIZE, PacMan.TILE_SIZE, null);
+                        if (!isCollisionWithWallOrPortal(nb)) freeDirs++;
+                    }
+                    if (freeDirs != 2 || isOnTunnel(b) || r==11) {
+                        // nodo valido
+                        Point p = new Point(c, r);
+                        graph.put(p, new ArrayList<>());
+                    }
+                }
+            }
+        }
+        // connetti archi orizz/vert tra nodi
+        for (Point p : graph.keySet()) {
+            for (Direction d : Direction.values()) {
+                int nc = p.x + d.dx;
+                int nr = p.y + d.dy;
+                // scendi lungo il corridoio fino al prossimo nodo
+                while (nc>=0 && nr>=0 && nr<rows && nc<cols) {
+                    Point q = new Point(nc, nr);
+                    if (graph.containsKey(q)) {
+                        graph.get(p).add(q);
+                        break;
+                    }
+                    nc += d.dx;
+                    nr += d.dy;
+                }
+            }
+        }
+        return graph;
+    }
+    
+    /**
+     * Verifica se un blocco si trova dentro un tunnel (per considerarlo nodo di pathfinding).
+     */
+    private boolean isOnTunnel(Block b) {
+        for (Block t : tunnels) {
+            if (collision(b, t)) return true;
+        }
+        return false;
+    }
+
 }

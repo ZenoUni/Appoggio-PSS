@@ -33,6 +33,11 @@ public class GhostManager {
     private boolean frozen = false;
     private long frozenEndTime = 0;
 
+    private final Map<Block, Deque<GameMap.Point>> orangePaths = new HashMap<>();
+    private final Map<Block, Deque<GameMap.Point>> pinkPaths   = new HashMap<>();
+    private final Map<GameMap.Point, List<GameMap.Point>> navGraph;
+    private final Map<Block, Boolean> orangeChaseState = new HashMap<>();
+
     private long randomInterval() { 
         return (4 + rand.nextInt(3)) * 1000L; 
     }
@@ -44,6 +49,8 @@ public class GhostManager {
                         GameMap map,
                         PacMan game,
                         SoundManager soundManager) {
+        this.map = map;
+        this.navGraph = map.buildNavigationGraph();
         this.imageLoader      = new ImageLoader();
         this.scaredGhostImage = imageLoader.getScaredGhostImage();
         this.whiteGhostImage  = imageLoader.getWhiteGhostImage();
@@ -51,7 +58,6 @@ public class GhostManager {
         this.cagedGhosts      = new ArrayList<>();
         this.respawningGhosts = new ArrayList<>();
         this.ghostPortal      = ghostPortal;
-        this.map              = map;
         this.game             = game;
 
         Block red = allGhosts.stream()
@@ -94,6 +100,7 @@ public class GhostManager {
         long now = System.currentTimeMillis();
         nextChangeTime.clear();
         nextChangeTime.put(red, now + randomInterval());
+        orangeChaseState.clear();
     }
 
     // Avvia i timer per liberare progressivamente i fantasmi dalla gabbia
@@ -231,58 +238,106 @@ public class GhostManager {
             }
         }
     }
-
     
-    // Muove tutti i fantasmi in base ai loro stati (uscita, inseguimento, freezati)
     public void moveGhosts() {
         long now = System.currentTimeMillis();
-        if (frozen) {
-            if (now >= frozenEndTime) {
-                frozen = false;
-            } else {
-                return;
-            }
-        }
+        if (frozen && now < frozenEndTime) return;
+        frozen = false;
+
         updateScaredState();
         checkRespawningGhosts();
         checkCagedGhostsRelease();
+
         ghosts.sort(Comparator.comparingInt(g -> g.ghostType.ordinal()));
+
+        // Fase globale per Orange: 5s chase, 5s random
+        boolean chasePhase = ((now / ORANGE_PHASE_MS) % 2) == 1;
+
         for (Block g : ghosts) {
             if (g.isExiting) {
+                // Uscita dalla gabbia
                 g.y -= SPEED;
                 if (g.y + g.height < ghostPortal.y) {
                     g.isExiting = false;
                     g.image      = g.originalImage;
                     g.direction  = randomAvailable(g);
-                    nextChangeTime.put(g, now + randomInterval());
                 }
                 handleWrap(g);
                 continue;
             }
+
             Direction next;
+
             if (g.isScared) {
+                // Fantasma spaventato: comportamento casuale con timer
                 next = timedRandom(g, now);
+
             } else {
                 switch (g.ghostType) {
                     case RED:
                     case BLUE:
+                        // Esplorazione casuale
                         next = timedRandom(g, now);
                         break;
+
                     case ORANGE:
-                        boolean chasePhase = ((now / ORANGE_PHASE_MS) % 2) == 1;
-                        next = chasePhase ? chase(g) : timedRandom(g, now);
+                        // Orange alterna chase/random ogni 5s,
+                        // ricalcola la direzione solo quando la sotto‐fase cambia.
+                        Boolean last = orangeChaseState.get(g);
+                        if (last == null || last != chasePhase) {
+                            next = chasePhase
+                                ? chase(g)
+                                : randomAvailable(g);
+                            orangeChaseState.put(g, chasePhase);
+                        } else {
+                            next = g.direction;
+                        }
                         break;
+
                     case PINK:
-                        next = cagedGhosts.contains(g) ? Direction.UP : predictChase(g);
+                        // Pink: anticipa Pac-Man scegliendo tra le direzioni libere
+                        Block pac = game.getPacmanBlock();
+                        Direction pd = game.getPacmanDirection();
+                        // calcola target
+                        int tx = pac.x + pd.dx * PINK_PREDICT_TILES * PacMan.TILE_SIZE;
+                        int ty = pac.y + pd.dy * PINK_PREDICT_TILES * PacMan.TILE_SIZE;
+                        next = bestAvailableDirection(g, new Point(tx, ty));
                         break;
+
                     default:
                         next = timedRandom(g, now);
                 }
             }
-            moveAlong(g, next, now);
+
+            moveAlong(g, next);
             handleWrap(g);
         }
     }
+
+    /**
+     * Tenta di muovere il fantasma di un passo in `d`. Se è bloccato, ne sceglie subito
+     * un altro tra `availableDirections(g)`. Aggiorna sempre `g.direction`.
+     */
+    private void moveAlong(Block g, Direction d) {
+        int nx = g.x + d.dx * SPEED;
+        int ny = g.y + d.dy * SPEED;
+
+        if (!collidesWithWall(nx, ny)) {
+            g.x = nx;
+            g.y = ny;
+            g.direction = d;
+        } else {
+            // collisione: scegli subito una direzione libera
+            List<Direction> free = availableDirections(g);
+            Direction alt = free.isEmpty() ? g.direction
+                                        : free.get(rand.nextInt(free.size()));
+            g.x = g.x + alt.dx * SPEED;
+            g.y = g.y + alt.dy * SPEED;
+            g.direction = alt;
+        }
+    }
+
+
     
     private void handleWrap(Block g) {
         if (isOnTunnel(g)) {
@@ -344,22 +399,6 @@ public class GhostManager {
         return best;
     }
     
-    private void moveAlong(Block g, Direction d, long now) {
-        g.direction = d;
-        int nx = g.x + d.dx * SPEED;
-        int ny = g.y + d.dy * SPEED;
-    
-        if (!collidesWithWall(nx, ny)) {
-            g.x = nx; 
-            g.y = ny;
-        } else {
-            Direction nd = randomAvailable(g);
-            g.direction = nd;
-            nextChangeTime.put(g, now + randomInterval());
-        }
-    }
-    
-
     private boolean collidesWithWall(int x, int y) {
         Block test = new Block(null, x, y, PacMan.TILE_SIZE, PacMan.TILE_SIZE, null);
         return map.isCollisionWithWallOrPortal(test);
@@ -412,4 +451,119 @@ public class GhostManager {
     public void unfreeze() {
         frozen = false;
     }
+
+     // nuovo metodo A*
+    private Deque<GameMap.Point> findPath(GameMap.Point start, GameMap.Point goal) {
+        record Node(GameMap.Point p, double f) {}
+        PriorityQueue<Node> open = new PriorityQueue<>(Comparator.comparingDouble(n->n.f));
+        Map<GameMap.Point, GameMap.Point> cameFrom = new HashMap<>();
+        Map<GameMap.Point, Double> gScore = new HashMap<>();
+        gScore.put(start, 0.0);
+        open.add(new Node(start, heuristic(start, goal)));
+        
+        while (!open.isEmpty()) {
+            Node current = open.poll();
+            if (current.p.equals(goal)) break;
+            for (GameMap.Point neighbor : navGraph.getOrDefault(current.p, List.of())) {
+                double tentative = gScore.get(current.p) + 1;
+                if (tentative < gScore.getOrDefault(neighbor, Double.MAX_VALUE)) {
+                    cameFrom.put(neighbor, current.p);
+                    gScore.put(neighbor, tentative);
+                    double f = tentative + heuristic(neighbor, goal);
+                    open.add(new Node(neighbor, f));
+                }
+            }
+        }
+        Deque<GameMap.Point> path = new ArrayDeque<>();
+        GameMap.Point cur = goal;
+        while (cur != null && !cur.equals(start)) {
+            path.addFirst(cur);
+            cur = cameFrom.get(cur);
+        }
+        return path;
+    }
+
+    private double heuristic(GameMap.Point a, GameMap.Point b) {
+        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
+
+    // restituisce il nodo più vicino alla posizione del block
+    private GameMap.Point nearestNode(Block g) {
+        double best = Double.MAX_VALUE;
+        GameMap.Point bestP = null;
+        for (GameMap.Point p : navGraph.keySet()) {
+            double dx = g.x - p.x * PacMan.TILE_SIZE;
+            double dy = g.y - p.y * PacMan.TILE_SIZE;
+            double d2 = dx*dx + dy*dy;
+            if (d2 < best) {
+                best = d2;
+                bestP = p;
+            }
+        }
+        return bestP;
+    }
+
+   /**
+     * Dato un percorso di nodi, ritorna la direzione verso il primo passo,
+     * salta automaticamente i nodi in caso di collisione.
+     */
+    private Direction directionAlongPath(Block g, Deque<GameMap.Point> path) {
+        if (path.isEmpty()) return g.direction;
+
+        GameMap.Point next = path.peekFirst();
+        GameMap.Point curr = nearestNode(g);
+
+        // primo step
+        final int diffX = next.x - curr.x;
+        final int diffY = next.y - curr.y;
+        Direction d = Arrays.stream(Direction.values())
+            .filter(dir -> dir.dx == diffX && dir.dy == diffY)
+            .findFirst()
+            .orElse(g.direction);
+
+        // verifichiamo collisione immediata
+        int nx = g.x + d.dx * SPEED;
+        int ny = g.y + d.dy * SPEED;
+        if (collidesWithWall(nx, ny) && path.size() > 1) {
+            // saltiamo il nodo corrente e ricalcoliamo
+            path.pollFirst();
+            GameMap.Point alt = path.peekFirst();
+            final int altX = alt.x - curr.x;
+            final int altY = alt.y - curr.y;
+            d = Arrays.stream(Direction.values())
+                .filter(dir -> dir.dx == altX && dir.dy == altY)
+                .findFirst()
+                .orElse(g.direction);
+        } else {
+            // possiamo consumare il nodo
+            path.pollFirst();
+        }
+
+        return d;
+    }
+
+
+    private GameMap.Point randomNode() {
+        List<GameMap.Point> keys = new ArrayList<>(navGraph.keySet());
+        return keys.get(rand.nextInt(keys.size()));
+    }
+
+    private GameMap.Point nearestNodeAnticipatedPac() {
+        Block pac = game.getPacmanBlock();
+        Direction pd = game.getPacmanDirection();
+        Block tmp = new Block(null,
+            pac.x + pd.dx * PINK_PREDICT_TILES * PacMan.TILE_SIZE,
+            pac.y + pd.dy * PINK_PREDICT_TILES * PacMan.TILE_SIZE,
+            PacMan.TILE_SIZE, PacMan.TILE_SIZE,
+            null);
+        return nearestNode(tmp);
+    }
+
+    // classe di supporto per A*
+    private static class Node {
+        final GameMap.Point p;
+        final double f;
+        Node(GameMap.Point p, double f) { this.p = p; this.f = f; }
+    }
+
 }
