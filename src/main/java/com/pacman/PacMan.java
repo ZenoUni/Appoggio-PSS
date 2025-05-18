@@ -55,6 +55,7 @@ public class PacMan extends Pane {
         SoundManager.loadSound("dot",       "sounds/dot.wav");
         SoundManager.loadSound("fruit",     "sounds/fruit.wav");
         SoundManager.loadSound("eat_ghost", "sounds/eat_ghost.wav");
+        SoundManager.loadSound("siren_ghost", "sounds/siren_ghost.wav");
 
         Canvas canvas = new Canvas(BOARD_WIDTH, BOARD_HEIGHT + TILE_SIZE);
         gc = canvas.getGraphicsContext2D();

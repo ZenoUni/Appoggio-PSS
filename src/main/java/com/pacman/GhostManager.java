@@ -152,6 +152,8 @@ public class GhostManager {
         scaredEndTime   = System.currentTimeMillis() + SCARED_DURATION_MS;
         for (Block g : ghosts)    g.isScared = true;
         for (Block g : cagedGhosts) g.isScared = true;
+
+        SoundManager.loopSound("siren_ghost");
     }
 
     private void updateScaredState() {
@@ -165,6 +167,7 @@ public class GhostManager {
                 g.isScared = false;
                 g.image    = g.originalImage;
             }
+            SoundManager.stopSound("siren_ghost");
         }
     }
 
