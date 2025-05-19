@@ -317,24 +317,49 @@ public class GhostManager {
      * Tenta di muovere il fantasma di un passo in `d`. Se è bloccato, ne sceglie subito
      * un altro tra `availableDirections(g)`. Aggiorna sempre `g.direction`.
      */
-    private void moveAlong(Block g, Direction d) {
-        int nx = g.x + d.dx * ghostSPEED;
-        int ny = g.y + d.dy * ghostSPEED;
+   private void moveAlong(Block g, Direction d) {
+    // Calcola posizione “raw” se muovessi in d
+    int nx = g.x + d.dx * ghostSPEED;
+    int ny = g.y + d.dy * ghostSPEED;
 
-        if (!collidesWithWall(nx, ny)) {
-            g.x = nx;
-            g.y = ny;
-            g.direction = d;
-        } else {
-            // collisione: scegli subito una direzione libera
-            List<Direction> free = availableDirections(g);
-            Direction alt = free.isEmpty() ? g.direction
-                                        : free.get(rand.nextInt(free.size()));
-            g.x = g.x + alt.dx * ghostSPEED;
-            g.y = g.y + alt.dy * ghostSPEED;
-            g.direction = alt;
+    // Verifica collisione in quella posizione
+    boolean free = !collidesWithWall(nx, ny);
+
+    // Solo quando sono esattamente su confini di cella (multipli di TILE_SIZE)
+    // posso cambiare direzione; altrimenti proseguo nella dir attuale
+    boolean onGridX = (g.x % PacMan.TILE_SIZE) == 0;
+    boolean onGridY = (g.y % PacMan.TILE_SIZE) == 0;
+    if (!(onGridX && onGridY)) {
+        // non sono centrato: continuo nella direzione corrente se possibile
+        Direction cur = g.direction;
+        int cx = g.x + cur.dx * ghostSPEED;
+        int cy = g.y + cur.dy * ghostSPEED;
+        if (!collidesWithWall(cx, cy)) {
+            g.x = cx;
+            g.y = cy;
+            return;
         }
+        // se pure la direzione corrente è bloccata, cadremo più sotto a scegliere un'alternativa
     }
+
+    // Se sono centrato o direzione sbagliata, e d è libero, uso d
+    if (free) {
+        g.x = nx;
+        g.y = ny;
+        g.direction = d;
+        return;
+    }
+
+    // Collisione: cerco subito tra le libere
+    List<Direction> freeDirs = availableDirections(g);
+    if (!freeDirs.isEmpty()) {
+        Direction alt = freeDirs.get(rand.nextInt(freeDirs.size()));
+        g.x += alt.dx * ghostSPEED;
+        g.y += alt.dy * ghostSPEED;
+        g.direction = alt;
+    }
+    // se non ci sono libere (rare), rimane fermo
+}
 
 
     

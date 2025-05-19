@@ -97,4 +97,5 @@ public class SoundManager {
     public static Clip getClip(String name) {
         return soundClips.get(name);
     }
+
 }

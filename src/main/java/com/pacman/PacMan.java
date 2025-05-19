@@ -12,12 +12,12 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 
 public class PacMan extends Pane {
-    public static final int TILE_SIZE    = 30;
+    public static final int TILE_SIZE    = 32;
     public static final int ROW_COUNT    = 22;
     public static final int COLUMN_COUNT = 19;
     public static final int BOARD_WIDTH  = COLUMN_COUNT * TILE_SIZE;
     public static final int BOARD_HEIGHT = ROW_COUNT * TILE_SIZE;
-    private static final int pacmanSPEED = 3;
+    private static final int pacmanSPEED = 2;
     private boolean started = false;
     private final GraphicsContext gc;
     private AnimationTimer       gameLoop;
@@ -352,6 +352,7 @@ private void movePacman() {
     }
 
     private void loseLife() {
+        SoundManager.stopSound("siren_ghost");
         gameLoop.stop();
         speedMultiplier = 1.0;  // reset moltiplicatore
         ghostManager.unfreeze();
@@ -386,6 +387,7 @@ private void movePacman() {
     }
 
     private void nextLevel() {
+        SoundManager.stopSound("siren_ghost");
         speedMultiplier = 1.0;
         ghostManager.unfreeze();
         level++;
