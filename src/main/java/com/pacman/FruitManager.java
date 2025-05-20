@@ -20,8 +20,8 @@ public class FruitManager {
     private long lastPhaseStart;
     private static final int MAX_FRUITS_PER_LEVEL  = 2;
     private static final int FRUIT_VISIBLE_MS      = 8000;
-    private static final int FIRST_DELAY_MS        = 20000;
-    private static final int SECOND_DELAY_MS       = 20000;
+    private static final int FIRST_DELAY_MS        = 10000;
+    private static final int SECOND_DELAY_MS       = 10000;
 
     public FruitManager(PacMan game, ImageLoader loader) {
         this.game = game;
@@ -150,7 +150,7 @@ public class FruitManager {
     private void activateSpeedPower() {
         game.setSpeedMultiplier(2.0);
         new Thread(() -> {
-            try { Thread.sleep(10_000); } catch (InterruptedException ignored) {}
+            try { Thread.sleep(5_000); } catch (InterruptedException ignored) {}
             Platform.runLater(() -> game.setSpeedMultiplier(1.0));
         }, "SpeedPowerTimer").start();
     }

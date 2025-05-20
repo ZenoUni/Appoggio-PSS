@@ -167,93 +167,102 @@ public class PacMan extends Pane {
         return 11;
     }
 
-private void movePacman() {
-    if (currentDirection == null) return;
-    Direction dir = keyToDir(currentDirection);
-    if (dir == null) return;
+    private void movePacman() {
+        if (currentDirection == null) return;
+        Direction dir = keyToDir(currentDirection);
+        if (dir == null) return;
 
-    // Quanti pixel muovere questo frame (arrotondato)
-    int pixelsToMove = (int) Math.round(speedMultiplier * pacmanSPEED);
-    // Non superiamo pacmanSPEED iterazioni
-    pixelsToMove = Math.min(pixelsToMove, pacmanSPEED);
+        // 1) Calcola quante volte devo eseguire un “passo” da pacmanSPEED pixel
+        int steps = (int) Math.round(speedMultiplier);
+        // assicuriamoci almeno 1
+        steps = Math.max(1, steps);
 
-    // Riutilizziamo un solo Block per i test di collisione
-    Block test = new Block(null, pacman.x, pacman.y, pacman.width, pacman.height, null);
+        // 2) Cerco di muovermi "steps" volte di pacmanSPEED pixel, allineando alla griglia
+        for (int s = 0; s < steps; s++) {
+            // ---- allineamento automatico come prima ----
+            if (dir == Direction.LEFT || dir == Direction.RIGHT) {
+                int targetY = Math.round((float) pacman.y / TILE_SIZE) * TILE_SIZE;
+                int deltaY = targetY - pacman.y;
+                if (deltaY != 0) {
+                    pacman.y += Integer.signum(deltaY) * Math.min(pacmanSPEED, Math.abs(deltaY));
+                    if (pacman.y != targetY) break;  // salto il resto di questo passo
+                }
+            } else {
+                int targetX = Math.round((float) pacman.x / TILE_SIZE) * TILE_SIZE;
+                int deltaX = targetX - pacman.x;
+                if (deltaX != 0) {
+                    pacman.x += Integer.signum(deltaX) * Math.min(pacmanSPEED, Math.abs(deltaX));
+                    if (pacman.x != targetX) break;
+                }
+            }
+            // --------------------------------------------
 
-    for (int i = 0; i < pixelsToMove; i++) {
-        int nx = pacman.x + dir.dx;
-        int ny = pacman.y + dir.dy;
-        test.x = nx;
-        test.y = ny;
-        if (!gameMap.isCollisionWithWallOrPortal(test)) {
-            pacman.x = nx;
-            pacman.y = ny;
+            // 3) Provo a muovermi di pacmanSPEED pixel in dir
+            int nx = pacman.x + dir.dx * pacmanSPEED;
+            int ny = pacman.y + dir.dy * pacmanSPEED;
+            Block test = new Block(null, nx, ny, pacman.width, pacman.height, null);
+            if (!gameMap.isCollisionWithWallOrPortal(test)) {
+                pacman.x = nx;
+                pacman.y = ny;
+            } else {
+                // ho sbattuto: interrompo la sequenza di passi
+                break;
+            }
+        }
+
+        // 4) Bocca + tunnel + cibo/frutta come prima...
+        animationCounter++;
+        if (animationCounter >= 10) {
+            mouthOpen = !mouthOpen;
+            animationCounter = 0;
+        }
+        applyImage(currentDirection);
+
+        // … tunnel
+        if (!inTunnel) {
+            for (Block t : gameMap.getTunnels()) {
+                if (collision(pacman, t)) {
+                    inTunnel = true;
+                    KeyCode prevDir    = currentDirection;
+                    KeyCode prevStored = storedDirection;
+                    gameMap.wrapAround(pacman);
+                    currentDirection = prevDir;
+                    storedDirection  = prevStored;
+                    break;
+                }
+            }
         } else {
-            // ho toccato un muro, interrompo qui
-            break;
-        }
-    }
-
-    // Animazione bocca
-    animationCounter++;
-    if (animationCounter >= 10) {
-        mouthOpen = !mouthOpen;
-        animationCounter = 0;
-    }
-    applyImage(currentDirection);
-
-    // Tunnel wrapping (uguale a prima) …
-    if (!inTunnel) {
-        for (Block t : gameMap.getTunnels()) {
-            if (collision(pacman, t)) {
-                inTunnel = true;
-                KeyCode prevDir    = currentDirection;
-                KeyCode prevStored = storedDirection;
-                gameMap.wrapAround(pacman);
-                currentDirection = prevDir;
-                storedDirection  = prevStored;
-                break;
+            boolean still = false;
+            for (Block t : gameMap.getTunnels()) {
+                if (collision(pacman, t)) { still = true; break; }
             }
+            if (!still) inTunnel = false;
         }
-    } else {
-        boolean still = false;
-        for (Block t : gameMap.getTunnels()) {
-            if (collision(pacman, t)) {
-                still = true;
-                break;
-            }
+
+        // … cibo e frutta
+        int foodScore = gameMap.collectFood(pacman);
+        if (foodScore > 0) {
+            SoundManager.playSound("dot");
+            score += foodScore;
         }
-        if (!still) inTunnel = false;
+        if (gameMap.collectPowerFood(pacman)) {
+            score += 50;
+            ghostManager.activateScaredMode();
+        }
+        int prevScore = score;
+        score += fruitManager.collectFruit(pacman);
+        if (score > prevScore) {
+            int gained = score - prevScore;
+            FruitManager.FruitType type = switch (gained) {
+                case 200 -> FruitManager.FruitType.CHERRY;
+                case 400 -> FruitManager.FruitType.APPLE;
+                case 800 -> FruitManager.FruitType.STRAWBERRY;
+                default  -> null;
+            };
+            if (type != null) scoreManager.addCollectedFruit(type);
+            SoundManager.playSound("fruit");
+        }
     }
-
-    // Cibo e frutta (uguale a prima) …
-    int foodScore = gameMap.collectFood(pacman);
-    if (foodScore > 0) {
-        SoundManager.playSound("dot");
-        score += foodScore;
-    }
-    if (gameMap.collectPowerFood(pacman)) {
-        score += 50;
-        ghostManager.activateScaredMode();
-    }
-    int prevScore = score;
-    score += fruitManager.collectFruit(pacman);
-    if (score > prevScore) {
-        int gained = score - prevScore;
-        FruitManager.FruitType type = switch (gained) {
-            case 200 -> FruitManager.FruitType.CHERRY;
-            case 400 -> FruitManager.FruitType.APPLE;
-            case 800 -> FruitManager.FruitType.STRAWBERRY;
-            default  -> null;
-        };
-        if (type != null) scoreManager.addCollectedFruit(type);
-        SoundManager.playSound("fruit");
-    }
-}
-
-
-
-
 
     private Direction keyToDir(KeyCode k) {
         return switch (k) {

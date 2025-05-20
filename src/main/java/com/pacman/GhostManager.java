@@ -34,6 +34,8 @@ public class GhostManager {
     private long frozenEndTime = 0;
 
     private final Map<Block, Boolean> orangeChaseState = new HashMap<>();
+    private static final int PINK_PHASE_MS = 10000;
+
 
     private long randomInterval() { 
         return (4 + rand.nextInt(3)) * 1000L; 
@@ -293,16 +295,14 @@ public class GhostManager {
                         }
                         break;
 
-                    case PINK:
-                        // Pink: anticipa Pac-Man scegliendo tra le direzioni libere
-                        Block pac = game.getPacmanBlock();
-                        Direction pd = game.getPacmanDirection();
-                        // calcola target
-                        int tx = pac.x + pd.dx * PINK_PREDICT_TILES * PacMan.TILE_SIZE;
-                        int ty = pac.y + pd.dy * PINK_PREDICT_TILES * PacMan.TILE_SIZE;
-                        next = bestAvailableDirection(g, new Point(tx, ty));
+                   case PINK:
+                        long pinkPhaseTime = now % PINK_PHASE_MS;
+                        if (pinkPhaseTime < 6000) {  // Prime 6s: modalità predittiva
+                            next = bestAvailableDirection(g, predictedPacmanTarget());
+                        } else {  // 4s random
+                            next = timedRandom(g, now);
+                        }
                         break;
-
                     default:
                         next = timedRandom(g, now);
                 }
@@ -313,55 +313,62 @@ public class GhostManager {
         }
     }
 
+    private Point predictedPacmanTarget() {
+        Block pac = game.getPacmanBlock();
+        Direction pd = game.getPacmanDirection();
+        return new Point(
+            pac.x + pd.dx * PINK_PREDICT_TILES * PacMan.TILE_SIZE,
+            pac.y + pd.dy * PINK_PREDICT_TILES * PacMan.TILE_SIZE
+        );
+    }
+
     /**
      * Tenta di muovere il fantasma di un passo in `d`. Se è bloccato, ne sceglie subito
      * un altro tra `availableDirections(g)`. Aggiorna sempre `g.direction`.
      */
    private void moveAlong(Block g, Direction d) {
-    // Calcola posizione “raw” se muovessi in d
-    int nx = g.x + d.dx * ghostSPEED;
-    int ny = g.y + d.dy * ghostSPEED;
+        // Calcola posizione “raw” se muovessi in d
+        int nx = g.x + d.dx * ghostSPEED;
+        int ny = g.y + d.dy * ghostSPEED;
 
-    // Verifica collisione in quella posizione
-    boolean free = !collidesWithWall(nx, ny);
+        // Verifica collisione in quella posizione
+        boolean free = !collidesWithWall(nx, ny);
 
-    // Solo quando sono esattamente su confini di cella (multipli di TILE_SIZE)
-    // posso cambiare direzione; altrimenti proseguo nella dir attuale
-    boolean onGridX = (g.x % PacMan.TILE_SIZE) == 0;
-    boolean onGridY = (g.y % PacMan.TILE_SIZE) == 0;
-    if (!(onGridX && onGridY)) {
-        // non sono centrato: continuo nella direzione corrente se possibile
-        Direction cur = g.direction;
-        int cx = g.x + cur.dx * ghostSPEED;
-        int cy = g.y + cur.dy * ghostSPEED;
-        if (!collidesWithWall(cx, cy)) {
-            g.x = cx;
-            g.y = cy;
+        // Solo quando sono esattamente su confini di cella (multipli di TILE_SIZE)
+        // posso cambiare direzione; altrimenti proseguo nella dir attuale
+        boolean onGridX = (g.x % PacMan.TILE_SIZE) == 0;
+        boolean onGridY = (g.y % PacMan.TILE_SIZE) == 0;
+        if (!(onGridX && onGridY)) {
+            // non sono centrato: continuo nella direzione corrente se possibile
+            Direction cur = g.direction;
+            int cx = g.x + cur.dx * ghostSPEED;
+            int cy = g.y + cur.dy * ghostSPEED;
+            if (!collidesWithWall(cx, cy)) {
+                g.x = cx;
+                g.y = cy;
+                return;
+            }
+            // se pure la direzione corrente è bloccata, cadremo più sotto a scegliere un'alternativa
+        }
+
+        // Se sono centrato o direzione sbagliata, e d è libero, uso d
+        if (free) {
+            g.x = nx;
+            g.y = ny;
+            g.direction = d;
             return;
         }
-        // se pure la direzione corrente è bloccata, cadremo più sotto a scegliere un'alternativa
+
+        // Collisione: cerco subito tra le libere
+        List<Direction> freeDirs = availableDirections(g);
+        if (!freeDirs.isEmpty()) {
+            Direction alt = freeDirs.get(rand.nextInt(freeDirs.size()));
+            g.x += alt.dx * ghostSPEED;
+            g.y += alt.dy * ghostSPEED;
+            g.direction = alt;
+        }
+        // se non ci sono libere (rare), rimane fermo
     }
-
-    // Se sono centrato o direzione sbagliata, e d è libero, uso d
-    if (free) {
-        g.x = nx;
-        g.y = ny;
-        g.direction = d;
-        return;
-    }
-
-    // Collisione: cerco subito tra le libere
-    List<Direction> freeDirs = availableDirections(g);
-    if (!freeDirs.isEmpty()) {
-        Direction alt = freeDirs.get(rand.nextInt(freeDirs.size()));
-        g.x += alt.dx * ghostSPEED;
-        g.y += alt.dy * ghostSPEED;
-        g.direction = alt;
-    }
-    // se non ci sono libere (rare), rimane fermo
-}
-
-
     
     private void handleWrap(Block g) {
         if (isOnTunnel(g)) {
