@@ -303,26 +303,40 @@ Ogni componente architetturale ricopre uno o più ruoli precisi e interagisce tr
 
 ```mermaid
 classDiagram
-    class App {
-        +start()
-    }
 
-    class PacMan {
-        +runGameLoop()
-    }
+class App {
+    +start()
+}
+<<boundary>> App
 
-    class GameMap
-    class GhostManager
-    class FruitManager
-    class Direction
+class PacMan {
+    +runGameLoop()
+}
+<<control>> PacMan
 
-    App --> PacMan : Avvia
-    PacMan --> GameMap : Legge stato labirinto
-    PacMan --> GhostManager : Coordina i fantasmi
-    PacMan --> FruitManager : Verifica bonus
-    PacMan --> Direction : Interpreta input
-    GameMap --> Block : Contiene
-    class Block
+class GameMap
+<<entity>> GameMap
+
+class Block
+<<entity>> Block
+
+class GhostManager
+<<entity>> GhostManager
+
+class FruitManager
+<<entity>> FruitManager
+
+class Direction
+<<entity>> Direction
+
+App --> PacMan : avvia
+PacMan --> GameMap : legge stato
+GameMap --> Block : contiene
+PacMan --> GhostManager : aggiorna AI nemici
+PacMan --> FruitManager : gestisce bonus
+PacMan --> Direction : interpreta input
+
 
 ```
+
 
