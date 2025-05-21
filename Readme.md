@@ -2,7 +2,7 @@
 
 ## ANALISI 
 
-***Analisi dei Requisiti***
+### Analisi dei Requisiti
 
 L'applicazione PacMan 2.0 dovrà soddisfare i seguenti requisiti funzionali:
 
