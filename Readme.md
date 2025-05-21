@@ -110,7 +110,7 @@ classDiagram
         +valoreCorrente
     }
 
-    PillolaSpeciale --|> Food : estensione
+    PowerFood --|> Food : estensione
     PacMan --> Food : raccoglie
     PacMan --> PowerFood : raccoglie
     PacMan --> Fantasma : interazione
