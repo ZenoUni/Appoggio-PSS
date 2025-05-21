@@ -228,7 +228,7 @@ Ogni componente architetturale ricopre uno o più ruoli precisi e interagisce tr
 
 > Inizializza la componente di controllo (PacMan)
 
-Interazioni:
+• Interazioni:
 
 > Crea e invoca PacMan per iniziare la partita
 
@@ -301,5 +301,28 @@ Interazioni:
 
 > Usato da PacMan per interpretare i comandi del giocatore
 
+```mermaid
+classDiagram
+    class App {
+        +start()
+    }
 
+    class PacMan {
+        +runGameLoop()
+    }
+
+    class GameMap
+    class GhostManager
+    class FruitManager
+    class Direction
+
+    App --> PacMan : Avvia
+    PacMan --> GameMap : Legge stato labirinto
+    PacMan --> GhostManager : Coordina i fantasmi
+    PacMan --> FruitManager : Verifica bonus
+    PacMan --> Direction : Interpreta input
+    GameMap --> Block : Contiene
+    class Block
+
+```
 
