@@ -38,7 +38,7 @@ Eventuali requisiti aggiuntivi rispetto al gioco originale (PacMan 2.0):
 
 Il dominio applicativo è quello dei videogiochi di tipo arcade a scorrimento labirintico, in cui un giocatore interagisce con un ambiente chiuso e pieno di ostacoli, con lo scopo di completare un obiettivo (raccogliere tutte le pillole) evitando minacce (i fantasmi). Il gioco si fonda su una logica a turni continui (real-time), che prevede il costante aggiornamento dello stato del gioco in risposta alle azioni del giocatore e al comportamento degli elementi autonomi (i nemici).
 
-* Il problema da affrontare è quello di modellare un ambiente interattivo in cui:
+Il problema da affrontare è quello di modellare un ambiente interattivo in cui:
 
 * Il comportamento dei nemici presenti sia sufficientemente vario e sfidante da offrire un'esperienza di gioco coinvolgente.
 
