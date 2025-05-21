@@ -77,7 +77,6 @@ classDiagram
     class PacMan {
         +posizione
         +viteResidue
-        +punteggio
     }
 
     class Fantasma {
