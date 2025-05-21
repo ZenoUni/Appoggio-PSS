@@ -1,6 +1,6 @@
 # Relazione finale PacMan 2.0 | Progettazione e Sviluppo del Software - A.A. 2024/2025 | Laurea in Tecnologie dei Sistemi Informatici - UNIBO
 
-*ANALISI*
+****ANALISI****
 
 ***Analisi dei Requisiti***
 
