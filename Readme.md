@@ -81,7 +81,7 @@ classDiagram
 
     class Fantasma {
         +posizione
-        +stato (normale/vulnerabile)
+        +stato -> normale/vulnerabile
     }
 
     class Food {
@@ -89,7 +89,7 @@ classDiagram
     }
 
     class PowerFood {
-        +effetto (vulnerabilità nemici)
+        +effetto -> vulnerabilità nemici
     }
 
     class Labirinto {
