@@ -25,6 +25,7 @@ public class ImageLoader {
     private final Image wallWhiteImage;
     private final Image volumeOnImage;
     private final Image volumeOffImage;
+    private final Image arrowInstructionImage;
 
 
     public ImageLoader() {
@@ -50,6 +51,7 @@ public class ImageLoader {
         wallWhiteImage   = load("/assets/wallWhite.png");
         volumeOnImage    = load("/assets/volume_on.png");
         volumeOffImage    = load("/assets/volume_off.png");
+        arrowInstructionImage = load("/assets/arrow_instruction.png");
     }
 
     private Image load(String path) {
@@ -78,5 +80,6 @@ public class ImageLoader {
     public Image getWallWhiteImage()      { return wallWhiteImage; }
     public Image getVolumeOnImage()       { return volumeOnImage; }
     public Image getVolumeOffImage()      { return volumeOffImage; }
+    public Image arrowInstructionImage()  { return arrowInstructionImage; }
 
 }
