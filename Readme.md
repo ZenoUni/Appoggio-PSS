@@ -8,9 +8,9 @@ L'applicazione PacMan 2.0 dovrà soddisfare i seguenti requisiti funzionali:
 
 • Il giocatore deve poter controllare il personaggio principale (PacMan) all'interno di un labirinto.
 
-• Il labirinto deve contenere dei "dots" (cibo) che PacMan può raccogliere per accumulare punti.
+* Il labirinto deve contenere dei "dots" (cibo) che PacMan può raccogliere per accumulare punti.
 
-• Devono essere presenti nemici (i fantasmi), che si muovono nel labirinto secondo un comportamento definito e non.
+    * Devono essere presenti nemici (i fantasmi), che si muovono nel labirinto secondo un comportamento definito e non.
 
 • Se un fantasma mangia PacMan, il giocatore perde una vita.
 
@@ -332,11 +332,11 @@ class Direction
 App --> PacMan : avvia
 PacMan --> GameMap : legge stato
 GameMap --> Block : contiene
-PacMan --> GhostManager : aggiorna AI nemici
+PacMan --> GhostManager : aggiorna AI fantasmi
 PacMan --> FruitManager : gestisce bonus
 PacMan --> Direction : interpreta input
-
-
 ```
+
+
 
 
