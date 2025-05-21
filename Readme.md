@@ -84,11 +84,11 @@ classDiagram
         +stato (normale/vulnerabile)
     }
 
-    class Pillola {
+    class Food {
         +valore
     }
 
-    class PillolaSpeciale {
+    class PowerFood {
         +effetto (invisibilità o vulnerabilità nemici)
     }
 
@@ -110,9 +110,9 @@ classDiagram
         +valoreCorrente
     }
 
-    PillolaSpeciale --|> Pillola : estensione
-    PacMan --> Pillola : raccoglie
-    PacMan --> PillolaSpeciale : raccoglie
+    PillolaSpeciale --|> Food : estensione
+    PacMan --> Food : raccoglie
+    PacMan --> PowerFood : raccoglie
     PacMan --> Fantasma : interazione
     PacMan --> Labirinto : si muove in
     Fantasma --> Labirinto : si muove in
