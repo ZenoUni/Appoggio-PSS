@@ -75,7 +75,6 @@ _Relazioni tra entità:_
 ```mermaid
 classDiagram
     class PacMan {
-        <<entity>>
     }
 
     class Fantasma {
