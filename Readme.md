@@ -135,6 +135,7 @@ Questa architettura ha consentito un’evoluzione ordinata del progetto e una ge
 
 ### Componenti principali
 > App.java
+
 Questo componente rappresenta il punto d’ingresso dell’applicazione. Ha il compito di:
 
 • Avviare l’ambiente JavaFX
@@ -144,6 +145,7 @@ Questo componente rappresenta il punto d’ingresso dell’applicazione. Ha il c
 • Inizializzare e lanciare la schermata principale di gioco
 
 > PacMan.java
+
 È il cuore logico dell'applicazione. In esso è concentrata la gestione del ciclo di gioco:
 
 • Avanzamento del tempo
@@ -157,6 +159,7 @@ Questo componente rappresenta il punto d’ingresso dell’applicazione. Ha il c
 Coordina inoltre le varie componenti esterne, come il labirinto o i manager dedicati.
 
 > GameMap.java
+
 Modella il labirinto di gioco, ovvero la struttura della mappa. Gestisce:
 
 • La disposizione dei blocchi, delle pillole e delle pillole speciali
@@ -166,9 +169,11 @@ Modella il labirinto di gioco, ovvero la struttura della mappa. Gestisce:
 • Le interazioni tra gli elementi statici e i personaggi
 
 > Direction.java
+
 Questa componente rappresenta un'astrazione per la direzione del movimento, consentendo una gestione ordinata dei comandi direzionali (su, giù, sinistra, destra). Facilita la gestione dell’input e del comportamento dinamico dei personaggi.
 
 > GhostManager.java
+
 Gestisce il comportamento e il movimento dei fantasmi, che possono essere:
 
 • In modalità inseguimento (cercano PacMan)
@@ -180,9 +185,11 @@ Gestisce il comportamento e il movimento dei fantasmi, che possono essere:
 Gestisce anche eventuali differenze comportamentali tra fantasmi.
 
 > FruitManager.java
+
 Controlla la comparsa e la raccolta dei frutti bonus. I frutti appaiono in momenti specifici della partita e forniscono punti aggiuntivi se raccolti da PacMan.
 
 > Block.java
+
 Rappresenta un elemento del labirinto. Ogni blocco può essere:
 
 • Una parete
