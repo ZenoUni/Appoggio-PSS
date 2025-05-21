@@ -76,7 +76,7 @@ _Relazioni tra entità:_
 classDiagram
     class PacMan {
         +posizione
-        +viteResidue
+        +viteResidue ()
     }
 
     class Fantasma {
