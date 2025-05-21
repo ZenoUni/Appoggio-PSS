@@ -89,7 +89,7 @@ classDiagram
     }
 
     class PowerFood {
-        +effetto (invisibilità o vulnerabilità nemici)
+        +effetto (vulnerabilità nemici)
     }
 
     class Labirinto {
