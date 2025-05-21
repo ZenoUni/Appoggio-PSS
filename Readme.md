@@ -34,7 +34,7 @@ Eventuali requisiti aggiuntivi rispetto al gioco originale (PacMan 2.0):
 
 • Aggiungere una sezione "skin" al menù iniziale.
 
-***Analisi del Problema***
+### Analisi del Problema
 
 Il dominio applicativo è quello dei videogiochi di tipo arcade a scorrimento labirintico, in cui un giocatore interagisce con un ambiente chiuso e pieno di ostacoli, con lo scopo di completare un obiettivo (raccogliere tutte le pillole) evitando minacce (i fantasmi). Il gioco si fonda su una logica a turni continui (real-time), che prevede il costante aggiornamento dello stato del gioco in risposta alle azioni del giocatore e al comportamento degli elementi autonomi (i nemici).
 
@@ -48,7 +48,7 @@ Il dominio applicativo è quello dei videogiochi di tipo arcade a scorrimento la
 
 • Si gestiscano in modo corretto le condizioni di gioco (inizio, pausa, fine, punteggio, numero di vite).
 
-_Entità principali:_
+**Entità principali:**
 
 • PacMan (giocatore): entità principale controllata dall’utente. Si muove liberamente nel labirinto e interagisce con gli oggetti presenti.
 
@@ -62,7 +62,7 @@ _Entità principali:_
 
 • Vita: il giocatore dispone di un numero limitato di tentativi (vite); ogni contatto con un fantasma in stato normale comporta la perdita di una vita.
 
-_Relazioni tra entità:_
+**Relazioni tra entità:**
 
 • PacMan si muove nel Labirinto, raccoglie il food e può essere colpito dai Fantasmi.
 
@@ -81,7 +81,7 @@ classDiagram
 
     class Fantasma {
         +posizione
-        +stato -> normale/vulnerabile
+        +stato (normale/vulnerabile)
     }
 
     class Food {
@@ -89,7 +89,7 @@ classDiagram
     }
 
     class PowerFood {
-        +effetto -> vulnerabilità nemici
+        +effetto (vulnerabilità nemici)
     }
 
     class Labirinto {
@@ -120,3 +120,179 @@ classDiagram
     Livello --> Vita : gestisce
     Livello --> Punteggio : aggiorna
  ```
+## DESIGN
+
+### Architettura generale
+L'applicazione PacMan 2.0 è stata progettata seguendo un'architettura modulare, con una suddivisione chiara delle responsabilità tra le varie componenti. Il sistema ruota attorno a una struttura ad alto livello ispirata al pattern MVC, dove:
+
+• Il Model gestisce lo stato del gioco (posizione dei personaggi, mappa, punteggio, ecc.).
+
+• La View, fornita dall’ambiente JavaFX, si occupa della rappresentazione visiva del gioco.
+
+• Il Controller, implicito nella logica di gestione degli input, traduce le interazioni dell’utente in movimenti e azioni.
+
+Questa architettura ha consentito un’evoluzione ordinata del progetto e una gestione più chiara dei singoli aspetti funzionali, come fantasmi, frutti o pillole.
+
+### Componenti principali
+> App.java
+Questo componente rappresenta il punto d’ingresso dell’applicazione. Ha il compito di:
+
+• Avviare l’ambiente JavaFX
+
+• Visualizzare il menu iniziale (gioca, esci, ecc.)
+
+• Inizializzare e lanciare la schermata principale di gioco
+
+> PacMan.java
+È il cuore logico dell'applicazione. In esso è concentrata la gestione del ciclo di gioco:
+
+• Avanzamento del tempo
+
+• Movimento dei personaggi
+
+• Collisioni tra entità (es. PacMan e fantasmi, pillole, frutti)
+
+• Aggiornamento del punteggio e delle vite
+
+Coordina inoltre le varie componenti esterne, come il labirinto o i manager dedicati.
+
+> GameMap.java
+Modella il labirinto di gioco, ovvero la struttura della mappa. Gestisce:
+
+• La disposizione dei blocchi, delle pillole e delle pillole speciali
+
+• Le informazioni sugli spazi percorribili
+
+• Le interazioni tra gli elementi statici e i personaggi
+
+> Direction.java
+Questa componente rappresenta un'astrazione per la direzione del movimento, consentendo una gestione ordinata dei comandi direzionali (su, giù, sinistra, destra). Facilita la gestione dell’input e del comportamento dinamico dei personaggi.
+
+> GhostManager.java
+Gestisce il comportamento e il movimento dei fantasmi, che possono essere:
+
+• In modalità inseguimento (cercano PacMan)
+
+• In modalità fuga (quando è attiva una pillola speciale)
+
+• In modalità ritorno alla base (quando vengono “mangiati”)
+
+Gestisce anche eventuali differenze comportamentali tra fantasmi.
+
+> FruitManager.java
+Controlla la comparsa e la raccolta dei frutti bonus. I frutti appaiono in momenti specifici della partita e forniscono punti aggiuntivi se raccolti da PacMan.
+
+> Block.java
+Rappresenta un elemento del labirinto. Ogni blocco può essere:
+
+• Una parete
+
+• Uno spazio libero
+
+• Una posizione contenente una pillola, frutto o altro oggetto
+
+Questa classe viene utilizzata per strutturare il labirinto in modo modulare.
+
+### Personalizzazioni introdotte in PacMan 2.0
+Il progetto introduce alcune varianti rispetto alla versione classica:
+
+
+## ARCHITETTURA
+
+L’architettura di PacMan 2.0 segue una logica a componenti indipendenti, con chiara separazione dei ruoli tra gestione del gioco, interfaccia utente e logiche specializzate (gestione mappa, nemici, bonus).
+
+Più in dettaglio, il sistema può essere scomposto in tre gruppi principali:
+
+• Boundary (interfaccia utente): App
+
+• Control (logica del gioco): PacMan
+
+• Entity (modello del dominio): GameMap, Block, GhostManager, FruitManager, Direction
+
+Ogni componente architetturale ricopre uno o più ruoli precisi e interagisce tramite passaggi diretti di informazioni o gestione condivisa dello stato.
+
+### Ruoli e interazioni
+**App**
+• Ruolo: Boundary
+
+• Responsabilità:
+
+> Avvia l’interfaccia utente
+
+> Inizializza la componente di controllo (PacMan)
+
+Interazioni:
+
+> Crea e invoca PacMan per iniziare la partita
+
+> Presenta al giocatore il menu iniziale
+
+**PacMan**
+• Ruolo: Control
+
+• Responsabilità:
+
+> Coordina l’intero ciclo di gioco
+
+> Smista input e aggiorna lo stato
+
+• Interazioni:
+
+> Richiede lo stato attuale da GameMap
+
+> Controlla i fantasmi tramite GhostManager
+
+> Verifica la presenza di bonus con FruitManager
+
+> Usa Direction per interpretare l’input del giocatore
+
+**GameMap**
+• Ruolo: Entity
+
+• Responsabilità:
+
+> Rappresenta la struttura del labirinto
+
+> Fornisce accesso ai Block
+
+• Interazioni:
+
+> Espone informazioni necessarie a PacMan
+
+> Contiene e organizza Block in forma di griglia
+
+**GhostManager** 
+• Ruolo: Entity
+
+• Responsabilità:
+
+> Gestisce tutti i fantasmi e il loro stato
+
+• Interazioni:
+
+> Riceve aggiornamenti e direttive da PacMan
+
+**FruitManager**
+• Ruolo: Entity
+
+• Responsabilità:
+
+> Controlla l’apparizione e la raccolta dei frutti bonus
+
+• Interazioni:
+
+> Consultato da PacMan per verificare interazioni con frutti
+
+**Direction**
+• Ruolo: Entity
+
+• Responsabilità:
+
+> Fornisce un’astrazione semplice per i movimenti
+
+• Interazioni:
+
+> Usato da PacMan per interpretare i comandi del giocatore
+
+
+
