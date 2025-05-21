@@ -74,43 +74,50 @@ _Relazioni tra entità:_
 
 ```mermaid
 classDiagram
-    class PacMan
+    class PacMan {
+        +posizione
+        +viteResidue
+        +punteggio
+    }
 
     class Fantasma {
-        <<entity>>
+        +posizione
+        +stato (normale/vulnerabile)
     }
 
     class Pillola {
-        <<entity>>
+        +valore
     }
 
     class PillolaSpeciale {
-        <<entity>>
+        +effetto (invisibilità o vulnerabilità nemici)
     }
 
     class Labirinto {
-        <<entity>>
+        +struttura
+        +oggettiPresenti
     }
 
     class Livello {
-        <<entity>>
+        +numero
+        +difficoltà
     }
 
     class Vita {
-        <<entity>>
+        +conteggio
     }
 
     class Punteggio {
-        <<entity>>
+        +valoreCorrente
     }
 
+    PillolaSpeciale --|> Pillola : estensione
     PacMan --> Pillola : raccoglie
     PacMan --> PillolaSpeciale : raccoglie
-    PillolaSpeciale --|> Pillola : estende
-    PacMan --> Fantasma : può essere colpito da
+    PacMan --> Fantasma : interazione
     PacMan --> Labirinto : si muove in
     Fantasma --> Labirinto : si muove in
-    Labirinto --> Livello : parte di
+    Labirinto --> Livello : fa parte di
     Livello --> Vita : gestisce
     Livello --> Punteggio : aggiorna
  ```
