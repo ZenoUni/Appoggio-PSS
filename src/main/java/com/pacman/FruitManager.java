@@ -130,7 +130,7 @@ public class FruitManager {
                     lastPhaseStart = System.currentTimeMillis();
                     if (worker != null) worker.interrupt();
                 }
-                // con 33% estrae un superpotere
+                // con 33% da un superpotere
                 if (rand.nextDouble() < 0.33) {
                     // decide se speed o freeze (50/50)
                     if (rand.nextBoolean()) {

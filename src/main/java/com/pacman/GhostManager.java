@@ -297,9 +297,9 @@ public class GhostManager {
 
                    case PINK:
                         long pinkPhaseTime = now % PINK_PHASE_MS;
-                        if (pinkPhaseTime < 6000) {  // Prime 6s: modalità predittiva
+                        if (pinkPhaseTime < 6000) {  // Primi 6 secondi: modalità predittiva
                             next = bestAvailableDirection(g, predictedPacmanTarget());
-                        } else {  // 4s random
+                        } else {  
                             next = timedRandom(g, now);
                         }
                         break;
@@ -322,10 +322,9 @@ public class GhostManager {
         );
     }
 
-    /**
-     * Tenta di muovere il fantasma di un passo in `d`. Se è bloccato, ne sceglie subito
-     * un altro tra `availableDirections(g)`. Aggiorna sempre `g.direction`.
-     */
+    
+  /* Tenta di muovere il fantasma di un passo in `d`. Se è bloccato, ne sceglie subito
+     un altro tra `availableDirections(g)`. Aggiorna sempre `g.direction` */
    private void moveAlong(Block g, Direction d) {
         // Calcola posizione “raw” se muovessi in d
         int nx = g.x + d.dx * ghostSPEED;
@@ -334,8 +333,8 @@ public class GhostManager {
         // Verifica collisione in quella posizione
         boolean free = !collidesWithWall(nx, ny);
 
-        // Solo quando sono esattamente su confini di cella (multipli di TILE_SIZE)
-        // posso cambiare direzione; altrimenti proseguo nella dir attuale
+     /* Solo quando sono esattamente su confini di cella (multipli di TILE_SIZE)
+        posso cambiare direzione; altrimenti proseguo nella dir attuale*/
         boolean onGridX = (g.x % PacMan.TILE_SIZE) == 0;
         boolean onGridY = (g.y % PacMan.TILE_SIZE) == 0;
         if (!(onGridX && onGridY)) {
@@ -367,7 +366,6 @@ public class GhostManager {
             g.y += alt.dy * ghostSPEED;
             g.direction = alt;
         }
-        // se non ci sono libere (rare), rimane fermo
     }
     
     private void handleWrap(Block g) {
@@ -463,12 +461,12 @@ public class GhostManager {
         return false;
     }
 
-    // Congela i movimenti dei fantasmi per un certo intervallo
+    // Congela i fantasmi per un certo intervallo
     public void freeze(long durationMs) {
         frozen = true;
         frozenEndTime = System.currentTimeMillis() + durationMs;
     }
-    // Disgela i movimenti dei fantasmi
+    // unfreeze dei fantasmi
     public void unfreeze() {
         frozen = false;
     }

@@ -127,7 +127,7 @@ public class PacMan extends Pane {
             }
         });
     }
-
+    // Avvia il gioco solo dopo che il giocatore ha premuto una direzione valida.
     private void startAfterReady(KeyCode initialDir) {
         if (started) return;
         if (keyToDir(initialDir) == null) return;
@@ -139,7 +139,7 @@ public class PacMan extends Pane {
         ghostManager.startCageTimers();
         startGameLoop();
     }
-
+    // Crea e avvia il ciclo principale del gioco (chiamato ogni frame).
     private void startGameLoop() {
         gameLoop = new AnimationTimer() {
             @Override
@@ -174,7 +174,7 @@ public class PacMan extends Pane {
 
         // 1) Calcola quante volte devo eseguire un “passo” da pacmanSPEED pixel
         int steps = (int) Math.round(speedMultiplier);
-        // assicuriamoci almeno 1
+        // ci si assicura almeno 1
         steps = Math.max(1, steps);
 
         // 2) Cerco di muovermi "steps" volte di pacmanSPEED pixel, allineando alla griglia
@@ -195,7 +195,6 @@ public class PacMan extends Pane {
                     if (pacman.x != targetX) break;
                 }
             }
-            // --------------------------------------------
 
             // 3) Provo a muovermi di pacmanSPEED pixel in dir
             int nx = pacman.x + dir.dx * pacmanSPEED;
@@ -205,7 +204,7 @@ public class PacMan extends Pane {
                 pacman.x = nx;
                 pacman.y = ny;
             } else {
-                // ho sbattuto: interrompo la sequenza di passi
+                // ho sbattuto: si blocca la sequenza
                 break;
             }
         }
@@ -239,7 +238,7 @@ public class PacMan extends Pane {
             if (!still) inTunnel = false;
         }
 
-        // … cibo e frutta
+        // … food e frutta
         int foodScore = gameMap.collectFood(pacman);
         if (foodScore > 0) {
             SoundManager.playSound("dot");
@@ -264,6 +263,7 @@ public class PacMan extends Pane {
         }
     }
 
+    // Converte un tasto premuto nella direzione corrispondente
     private Direction keyToDir(KeyCode k) {
         return switch (k) {
             case UP    -> Direction.UP;
@@ -274,6 +274,7 @@ public class PacMan extends Pane {
         };
     }
 
+    // Restituisce il blocco di Pac-Man (posizione e dimensione).
     public Block getPacmanBlock() {
         return pacman;
     }
@@ -285,7 +286,7 @@ public class PacMan extends Pane {
         }
         return Direction.randomDirection();
     }
-
+    // Disegna tutti gli elementi grafici   
     private void draw() {
         gc.setFill(Color.BLACK);
         gc.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT + TILE_SIZE);
@@ -317,7 +318,7 @@ public class PacMan extends Pane {
             default    -> { }
         }
     }
-
+    // Presione dei tasti durante il gioco
     private void handleKeyPress(KeyCode key) {
         if (flashing) return;
         if (gameOver) { mainMenu.returnToMenu(); return; }
@@ -346,7 +347,7 @@ public class PacMan extends Pane {
         }
         if (keyToDir(key) != null) storedDirection = key;
     }
-
+    // Verifica se due blocchi (entità) sono in collisione.
     private boolean collision(Block a, Block c) {
         return a.x < c.x + c.width &&
                a.x + a.width > c.x &&
@@ -359,7 +360,8 @@ public class PacMan extends Pane {
         t.setFont(font);
         return t.getLayoutBounds().getWidth();
     }
-
+    /* Gestisce la perdita di una vita: blocca il gioco, riproduce suono death, imposta lo stato per 
+       continuare o terminare.*/
     private void loseLife() {
         SoundManager.stopSound("siren_ghost");
         gameLoop.stop();
@@ -409,6 +411,7 @@ public class PacMan extends Pane {
 
     public int getCurrentLevel() { return level; }
     public void setSpeedMultiplier(double m) { speedMultiplier = m; }
+    // Restituisce il moltiplicatore di velocità attuale
     public double getSpeedMultiplier()   { return speedMultiplier; }
     public void freezeGhosts(long durationMs) { ghostManager.freeze(durationMs); }
 
